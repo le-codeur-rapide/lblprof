@@ -1,38 +1,103 @@
-import opcode
 import sys
 import time
 import os
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional, Any
 from pydantic import BaseModel, Field
-
+from pydantic import (
+    field_validator, 
+    ConfigDict
+)
+from pydantic import model_validator
 
 # Define Pydantic models for our data structures
 class LineStats(BaseModel):
     """Statistics for a single line of code."""
-    line_no: int
-    hits: int
-    time: float  # milliseconds
-    avg_time: float  # milliseconds per hit
-    percent: float  # percentage of function time
-    source: str # source code line
+    model_config = ConfigDict(validate_assignment=True)
+    
+    line_no: int = Field(..., ge=1, description="Line number in the source file")
+    hits: int = Field(..., ge=0, description="Number of times this line was executed")
+    time: float = Field(..., ge=0, description="Time spent on this line in milliseconds")
+    avg_time: float = Field(..., ge=0, description="Average time per hit in milliseconds")
+    percent: float = Field(..., ge=0, le=100, description="Percentage of total time of the function spent on this line")
+    source: str = Field(..., min_length=1, description="Source code for this line")
+    
+    @field_validator('avg_time', mode='after')
+    @classmethod
+    def validate_avg_time(cls, v, info):
+        """Validate that average time is consistent with time and hits."""
+        if 'time' in info.data and 'hits' in info.data and info.data['hits'] > 0:
+            expected_avg = info.data['time'] / info.data['hits']
+            if abs(v - expected_avg) > 0.001:  # Allow small floating point differences
+                raise ValueError(f"avg_time ({v}) should equal time/hits ({expected_avg})")
+        return v
+
+
 
 class FunctionStats(BaseModel):
     """Statistics for a function execution."""
-    total_time: float  # milliseconds
-    lines: List[LineStats]
+    model_config = ConfigDict(validate_assignment=True)
+    
+    total_time: float = Field(..., ge=0, description="Total time spent in this function in milliseconds")
+    lines: List[LineStats] = Field(..., description="Statistics for each line in this function")
+
+    @field_validator('lines')
+    @classmethod
+    def validate_min_items(cls, v):
+        """Validate that there is at least one line."""
+        if len(v) < 1:
+            raise ValueError("At least one line statistic is required")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_line_percentages(self) -> 'FunctionStats':
+        """Validate that line percentages sum to approximately 100%.    
+            And that the sum of line times is consistent with total_time."""
+        if self.lines:
+            total_percent = sum(line.percent for line in self.lines)
+            # Allow small rounding errors (within 1%)
+            if not (99.0 <= total_percent <= 101.0):
+                raise ValueError(f"Line percentages sum to {total_percent}, expected approximately 100%")
+            
+            # Also validate that the sum of line times is consistent with total_time
+            total_line_time = sum(line.time for line in self.lines)
+            # Allow some discrepancy due to measurement limitations
+            if total_line_time > 0 and abs(total_line_time - self.total_time) / total_line_time > 0.1:
+                raise ValueError(f"Sum of line times ({total_line_time}ms) differs significantly from total time ({self.total_time}ms)")
+        return self
+
 
 class FunctionSummary(BaseModel):
     """Summary information for a single function."""
-    function_name: str
-    file_name: str
-    time_ms: float
-    percent: float
+    model_config = ConfigDict(validate_assignment=True)
+    
+    function_name: str = Field(..., min_length=1)
+    file_name: str = Field(..., min_length=1)
+    time_ms: float = Field(..., ge=0)
+    percent: float = Field(..., ge=0, le=100, description="Percentage of total time spent in this function")
+
 
 class TraceSummary(BaseModel):
     """Overall summary of profiling results."""
-    total_time_ms: float
-    functions: List[FunctionSummary]
+    model_config = ConfigDict(validate_assignment=True)
+    
+    total_time_ms: float = Field(..., ge=0, description="Total time spent in all functions")
+    functions: List[FunctionSummary] = Field(..., description="Summary of each function's execution")
+    
+    @model_validator(mode='after')
+    def validate_function_percentages(self) -> 'TraceSummary':
+        """Validate that function percentages sum to approximately 100%."""
+        if self.functions:
+            total_percent = sum(func.percent for func in self.functions)
+            # Allow small rounding errors (within 1%)
+            if not (99.0 <= total_percent <= 101.0):
+                raise ValueError(f"Function percentages sum to {total_percent}, expected approximately 100%")
+            
+            # Also validate that the sum of function times equals total_time
+            total_func_time = sum(func.time_ms for func in self.functions)
+            if abs(total_func_time - self.total_time_ms) > 0.001:
+                raise ValueError(f"Sum of function times ({total_func_time}ms) doesn't match total time ({self.total_time_ms}ms)")
+        return self
 
 
 class CodeTracer:
@@ -89,7 +154,7 @@ class CodeTracer:
                 with open(file_name, 'r') as f:
                     source_lines = f.readlines()
                     self.line_source[line_key] = source_lines[line_no-1].strip() if 0 <= line_no-1 < len(source_lines) else "<line not available>"
-            except:
+            except Exception:
                 self.line_source[line_key] = "<source not available>"
         
         # Handle function start/end
