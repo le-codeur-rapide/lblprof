@@ -34,12 +34,18 @@ def other_function():
 
     print("Done.")
 
+def function_using_json():
+    import json
+    data = {"key": "value"}
+    json_str = json.dumps(data)
+    print(json_str)
 
 header = f"| {'event':10} | {'arg':>4} | line | offset | {'opcode':^18} | {'locals':^35} |"
 print(header)
 set_custom_trace()
 fib(3)
 other_function()
+function_using_json()
 
 sys.settrace(None)  # Stop tracing
 

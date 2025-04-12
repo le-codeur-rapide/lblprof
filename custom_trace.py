@@ -1,6 +1,7 @@
 import opcode
 import sys
 import time
+import os
 from collections import defaultdict
 
 # Data structures to store trace information
@@ -10,6 +11,20 @@ line_hits = defaultdict(int)
 line_source = {}
 last_line_key = None
 last_time = None
+
+# Get user's home directory and site-packages paths to identify installed modules
+HOME_DIR = os.path.expanduser('~')
+SITE_PACKAGES_PATHS = [
+    os.path.join(HOME_DIR, '.local/lib'),  # Local user packages
+    '/usr/lib',                            # System-wide packages
+    '/usr/local/lib',                      # Another common location
+    'site-packages',                       # Catch any other site-packages
+    'frozen importlib',                    # Frozen modules
+]
+
+def is_installed_module(filename):
+    """Check if a file belongs to an installed module rather than user code."""
+    return any(path in filename for path in SITE_PACKAGES_PATHS)
 
 def custom_trace(frame, event, arg):
     global function_start_times, line_times, line_hits, line_source
@@ -24,6 +39,10 @@ def custom_trace(frame, event, arg):
     func_name = code.co_name
     file_name = code.co_filename
     line_no = frame.f_lineno
+    
+    # Skip installed modules
+    if is_installed_module(file_name):
+        return None  # Don't trace into installed modules
     
     # Create a unique key for this line
     line_key = (file_name, func_name, line_no)
@@ -66,7 +85,7 @@ def custom_trace(frame, event, arg):
             total_time = (now - function_start_times[func_key]) * 1000
             
             # Print function summary
-            print(f"\n===== Function {func_name} completed in {total_time:.3f}ms =====")
+            print(f"\n===== Function {func_key} completed in {total_time:.3f}ms =====")
             print(f"| {'Line':>4} | {'Hits':>6} | {'Time(ms)':>10} | {'Avg(ms)':>10} | {'%':>6} | Source")
             print('-' * 100)
             
