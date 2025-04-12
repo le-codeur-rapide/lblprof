@@ -3,20 +3,50 @@ import sys
 import time
 import os
 from collections import defaultdict
+from typing import Dict, List, Tuple, Optional, Any
+from pydantic import BaseModel, Field
+
+
+# Define Pydantic models for our data structures
+class LineStats(BaseModel):
+    """Statistics for a single line of code."""
+    line_no: int
+    hits: int
+    time: float  # milliseconds
+    avg_time: float  # milliseconds per hit
+    percent: float  # percentage of function time
+    source: str # source code line
+
+class FunctionStats(BaseModel):
+    """Statistics for a function execution."""
+    total_time: float  # milliseconds
+    lines: List[LineStats]
+
+class FunctionSummary(BaseModel):
+    """Summary information for a single function."""
+    function_name: str
+    file_name: str
+    time_ms: float
+    percent: float
+
+class TraceSummary(BaseModel):
+    """Overall summary of profiling results."""
+    total_time_ms: float
+    functions: List[FunctionSummary]
 
 
 class CodeTracer:
     def __init__(self):
         # Data structures to store trace information
-        self.function_start_times = {}
-        self.line_times = defaultdict(float)
-        self.line_hits = defaultdict(int)
-        self.line_source = {}
-        self.call_stack = []  # Keep track of function call stack
-        self.last_line_key = None
-        self.last_time = None
-        self.function_call_times = defaultdict(float)  # Track time spent in function calls
-        self.function_line_stats = {}  # Store stats for each function's lines
+        self.function_start_times: Dict[Tuple[str, str], float] = {}
+        self.line_times: Dict[Tuple[str, str, int], float] = defaultdict(float)
+        self.line_hits: Dict[Tuple[str, str, int], int] = defaultdict(int)
+        self.line_source: Dict[Tuple[str, str, int], str] = {}
+        self.call_stack: List[Tuple[str, str, int]] = []  # Keep track of function call stack
+        self.last_line_key: Optional[Tuple[str, str, int]] = None
+        self.last_time: Optional[float] = None
+        self.function_call_times: Dict[Tuple[str, str], float] = defaultdict(float)  # Track time spent in function calls
+        self.function_line_stats: Dict[Tuple[str, str], FunctionStats] = {}  # Store stats for each function's lines
         
         # Get user's home directory and site-packages paths to identify installed modules
         self.home_dir = os.path.expanduser('~')
@@ -30,11 +60,11 @@ class CodeTracer:
             '<'                                        # built-in modules
         ]
     
-    def is_installed_module(self, filename):
+    def is_installed_module(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code."""
         return any(path in filename for path in self.site_packages_paths)
     
-    def trace_function(self, frame, event, arg):
+    def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # Set up function-level tracing
         frame.f_trace_opcodes = True
         code = frame.f_code
@@ -121,39 +151,39 @@ class CodeTracer:
                     avg_time = time_spent / hits if hits > 0 else 0
                     percent = (time_spent / measured_total * 100) if measured_total > 0 else 0
                     
-                    line_stats.append({
-                        'line_no': line_no,
-                        'hits': hits,
-                        'time': time_spent,
-                        'avg_time': avg_time,
-                        'percent': percent,
-                        'source': self.line_source[line_key]
-                    })
+                    line_stats.append(LineStats(
+                        line_no=line_no,
+                        hits=hits,
+                        time=time_spent,
+                        avg_time=avg_time,
+                        percent=percent,
+                        source=self.line_source[line_key]
+                    ))
                 
                 # Store the function stats
-                self.function_line_stats[func_key] = {
-                    'total_time': total_time,
-                    'lines': line_stats
-                }
+                self.function_line_stats[func_key] = FunctionStats(
+                    total_time=total_time,
+                    lines=line_stats
+                )
                 
                 # Clean up
                 del self.function_start_times[func_key]
         
         return self.trace_function
     
-    def start_tracing(self):
+    def start_tracing(self) -> None:
         # Reset state
         self.__init__()
         # Start tracing
         sys.settrace(self.trace_function)
     
-    def stop_tracing(self):
+    def stop_tracing(self) -> None:
         sys.settrace(None)
     
-    def get_function_summary(self):
-        """Return the function execution time summary as a dictionary."""
+    def get_function_summary(self) -> TraceSummary:
+        """Return the function execution time summary as a Pydantic model."""
         if not self.function_call_times:
-            return {"error": "No functions were profiled."}
+            raise ValueError("No function call times recorded.")
         
         # Calculate total program time
         total_program_time = sum(self.function_call_times.values())
@@ -167,40 +197,36 @@ class CodeTracer:
             func_name = func_key[1]
             percent = (time_spent / total_program_time * 100) if total_program_time > 0 else 0
             
-            function_summary.append({
-                'function_name': func_name,
-                'file_name': func_key[0],
-                'time_ms': time_spent,
-                'percent': percent
-            })
+            function_summary.append(FunctionSummary(
+                function_name=func_name,
+                file_name=func_key[0],
+                time_ms=time_spent,
+                percent=percent
+            ))
         
-        return {
-            'total_time_ms': total_program_time,
-            'functions': function_summary
-        }
+        return TraceSummary(
+            total_time_ms=total_program_time,
+            functions=function_summary
+        )
     
-    def get_function_line_stats(self, func_key):
+    def get_function_line_stats(self, func_key: Tuple[str, str]) -> FunctionStats:
         """Return the line statistics for a specific function."""
         if func_key not in self.function_line_stats:
-            return {"error": f"Function {func_key} was not profiled or had very short execution time."}
+            raise ValueError(f"Function {func_key} not found in line stats.")
         
         return self.function_line_stats[func_key]
     
-    def get_all_line_stats(self):
+    def get_all_line_stats(self) -> Dict[Tuple[str, str], FunctionStats]:
         """Return line statistics for all functions."""
         return self.function_line_stats
     
     # Display methods - these turn the data into formatted output
-    def print_function_summary(self):
+    def print_function_summary(self) -> None:
         """Print a summary of all function execution times."""
         summary = self.get_function_summary()
         
-        if "error" in summary:
-            print(summary["error"])
-            return
-        
-        total_program_time = summary['total_time_ms']
-        function_summary = summary['functions']
+        total_program_time = summary.total_time_ms
+        function_summary = summary.functions
         
         print("\n\n============================================================")
         print("FUNCTION EXECUTION TIME SUMMARY")
@@ -209,29 +235,25 @@ class CodeTracer:
         print('-' * 65)
         
         for func in function_summary:
-            print(f"| {func['function_name']:40} | {func['time_ms']:>10.3f} | {func['percent']:>6.1f}% |")
+            print(f"| {func.function_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
         
         print('-' * 65)
         print(f"| {'TOTAL':40} | {total_program_time:>10.3f} | 100.0% |")
         print("============================================================")
     
-    def print_function_line_stats(self, func_key):
+    def print_function_line_stats(self, func_key: Tuple[str, str]) -> None:
         """Print detailed line statistics for a specific function."""
         stats = self.get_function_line_stats(func_key)
         
-        if "error" in stats:
-            print(stats["error"])
-            return
-        
-        print(f"\n===== Function {func_key} completed in {stats['total_time']:.3f}ms =====")
+        print(f"\n===== Function {func_key} completed in {stats.total_time:.3f}ms =====")
         print(f"| {'Line':>4} | {'Hits':>6} | {'Time(ms)':>10} | {'Avg(ms)':>10} | {'%':>6} | Source")
         print('-' * 100)
         
-        for line in stats['lines']:
-            print(f"| {line['line_no']:>4} | {line['hits']:>6} | {line['time']:>10.3f} | " +
-                  f"{line['avg_time']:>10.3f} | {line['percent']:>6.1f}% | {line['source']}")
+        for line in stats.lines:
+            print(f"| {line.line_no:>4} | {line.hits:>6} | {line.time:>10.3f} | " +
+                  f"{line.avg_time:>10.3f} | {line.percent:>6.1f}% | {line.source}")
     
-    def print_all_line_stats(self):
+    def print_all_line_stats(self) -> None:
         """Print detailed line statistics for all profiled functions."""
         for func_key in self.function_line_stats:
             self.print_function_line_stats(func_key)
@@ -241,14 +263,14 @@ class CodeTracer:
 # Create a singleton instance for the module
 tracer = CodeTracer()
 
-def set_custom_trace():
+def set_custom_trace() -> None:
     tracer.start_tracing()
 
-def stop_custom_trace():
+def stop_custom_trace() -> None:
     tracer.stop_tracing()
 
-def print_summary():
+def print_summary() -> None:
     tracer.print_function_summary()
 
-def print_all_details():
+def print_all_details() -> None:
     tracer.print_all_line_stats()
