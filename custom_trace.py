@@ -65,12 +65,8 @@ def custom_trace(frame, event, arg):
     if event == 'call':
         # We use the call stack to keep track of which function called which
         # sub function. This lets us attribute time correctly to the calling function.
-        print(f"Function {func_key} called from {call_stack[-1] if call_stack else 'main'}, line key: {line_key}")
-        print(f" last line key: {last_line_key}, last time: {last_time}")
-        line_caller = (last_line_key[0], last_line_key[1], last_line_key[2]) if last_line_key else None
-        if line_caller:
-            call_stack.append(line_caller)
-        # call_stack.append(line_key)
+        if last_line_key:
+            call_stack.append(last_line_key)
         function_start_times[func_key] = now
     
     elif event == 'line':
