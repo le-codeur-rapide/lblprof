@@ -19,7 +19,7 @@ def other_function():
     print("Start processing...")
 
     print("Generating large list...")
-    big_list = [random.random() for _ in range(10**6)]
+    big_list = [random.random() for _ in range(10**3)]
     print(f"Generated list of {len(big_list)} elements")
 
     # 🐢 Slow part
@@ -28,7 +28,7 @@ def other_function():
 
     print("Starting slow computation...")
     total = 0
-    for i in range(10**5):
+    for i in range(10**3):
         total += i ** 0.5
     print(f"Computation result: {total}")
 
