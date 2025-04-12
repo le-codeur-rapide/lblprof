@@ -34,11 +34,26 @@ def other_function():
 
     print("Done.")
 
+def quick_sub_function():
+    print("This is a quick sub-function.")
+    a = 1
+    return a
+
 def function_using_json():
     import json
     data = {"key": "value"}
     json_str = json.dumps(data)
+    quick_sub_function()
     print(json_str)
+
+def sub_function_1_second():
+    time.sleep(1)  # Simulate some delay
+    print("This sub-function sleeps for 1 second.")
+    
+def function_2_second():
+    sub_function_1_second()
+    time.sleep(1)  # Simulate some delay
+    print("This function sleeps for 1 second.")
 
 header = f"| {'event':10} | {'arg':>4} | line | offset | {'opcode':^18} | {'locals':^35} |"
 print(header)
@@ -46,6 +61,7 @@ set_custom_trace()
 fib(3)
 other_function()
 function_using_json()
+function_2_second()
 
 sys.settrace(None)  # Stop tracing
 
