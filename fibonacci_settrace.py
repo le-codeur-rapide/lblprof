@@ -4,7 +4,7 @@ import random
 import sys
 import time
 
-from custom_trace import set_custom_trace
+from custom_trace import print_all_details, print_summary, set_custom_trace
 
 
 def fib(n):
@@ -62,6 +62,8 @@ fib(3)
 other_function()
 function_using_json()
 function_2_second()
+print_all_details()
+# print_summary()
 
 sys.settrace(None)  # Stop tracing
 
