@@ -55,6 +55,10 @@ def function_2_second():
     time.sleep(1)  # Simulate some delay
     print("This function sleeps for 1 second.")
 
+def function_that_imports():
+    from other_module import some_function
+    time.sleep(1)  # Simulate some delay
+
 header = f"| {'event':10} | {'arg':>4} | line | offset | {'opcode':^18} | {'locals':^35} |"
 print(header)
 set_custom_trace()
@@ -62,10 +66,13 @@ fib(3)
 other_function()
 function_using_json()
 function_2_second()
-print_all_details()
-# print_summary()
+function_that_imports()
+
 
 sys.settrace(None)  # Stop tracing
+print_all_details()
+print_summary()
+
 
 
 # import inspect

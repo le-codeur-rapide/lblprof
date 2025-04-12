@@ -33,11 +33,11 @@ class LineStats(BaseModel):
         return v
 
 
-
 class FunctionStats(BaseModel):
     """Statistics for a function execution."""
     model_config = ConfigDict(validate_assignment=True)
     
+    function_key: Tuple[str, str] = Field(..., description="Key identifying the function (file_name, function_name)")
     total_time: float = Field(..., ge=0, description="Total time spent in this function in milliseconds")
     lines: List[LineStats] = Field(..., description="Statistics for each line in this function")
 
@@ -100,6 +100,13 @@ class TraceSummary(BaseModel):
         return self
 
 
+class LineState:
+    """Maintains state information for a code line."""
+    def __init__(self, line_key: Tuple[str, str, int], timestamp: float):
+        self.line_key = line_key
+        self.timestamp = timestamp
+
+
 class CodeTracer:
     def __init__(self):
         # Data structures to store trace information
@@ -108,10 +115,17 @@ class CodeTracer:
         self.line_hits: Dict[Tuple[str, str, int], int] = defaultdict(int)
         self.line_source: Dict[Tuple[str, str, int], str] = {}
         self.call_stack: List[Tuple[str, str, int]] = []  # Keep track of function call stack
+        
+        # Stack of line states to handle nested function calls
+        self.line_state_stack: List[LineState] = []
         self.last_line_key: Optional[Tuple[str, str, int]] = None
         self.last_time: Optional[float] = None
+        
         self.function_call_times: Dict[Tuple[str, str], float] = defaultdict(float)  # Track time spent in function calls
         self.function_line_stats: Dict[Tuple[str, str], FunctionStats] = {}  # Store stats for each function's lines
+        
+        # Map of functions to their active line keys
+        self.function_active_lines: Dict[Tuple[str, str], Tuple[str, str, int]] = {}
         
         # Get user's home directory and site-packages paths to identify installed modules
         self.home_dir = os.path.expanduser('~')
@@ -159,20 +173,29 @@ class CodeTracer:
         
         # Handle function start/end
         if event == 'call':
-            # We use the call stack to keep track of which function called which
-            # sub function. This lets us attribute time correctly to the calling function.
-            if self.last_line_key:
+            # Push the current line state onto the stack before starting a new function
+            if self.last_line_key is not None:
+                self.line_state_stack.append(LineState(self.last_line_key, self.last_time))
                 self.call_stack.append(self.last_line_key)
+            
+            # Record function start time
             self.function_start_times[func_key] = now
+            
+            # Reset line tracking for this function call
+            self.last_line_key = None
+            self.last_time = None
         
         elif event == 'line':
             # Count this line hit
             self.line_hits[line_key] += 1
             
-            # If we have a previous line, record its time
+            # If we have a previous line in this function, record its time
             if self.last_line_key is not None and self.last_time is not None:
                 elapsed = (now - self.last_time) * 1000
                 self.line_times[self.last_line_key] += elapsed
+            
+            # Update the function's current active line
+            self.function_active_lines[func_key] = line_key
             
             # Store current line for next calculation
             self.last_line_key = line_key
@@ -192,10 +215,19 @@ class CodeTracer:
                 # Record this function's time for attribution to parent functions
                 self.function_call_times[func_key] = total_time
                 
-                # If there's a parent function, attribute this time to the line that called us
+                # If there's a parent function that called us, attribute this time to that line
                 if self.call_stack:
                     parent_call_line = self.call_stack.pop()
                     self.line_times[parent_call_line] += total_time
+                
+                # Pop the previous line state from the stack
+                if self.line_state_stack:
+                    prev_state = self.line_state_stack.pop()
+                    self.last_line_key = prev_state.line_key
+                    self.last_time = now  # Use current time, not the stored time
+                else:
+                    self.last_line_key = None
+                    self.last_time = None
                 
                 # Skip very short functions to reduce noise
                 if total_time < 10:
@@ -204,6 +236,10 @@ class CodeTracer:
                 # Collect line stats for this function
                 func_lines = [(k, v) for k, v in self.line_times.items() if k[0] == file_name and k[1] == func_name]
                 func_lines.sort(key=lambda x: x[0][2])  # Sort by line number
+                
+                if not func_lines:
+                    # Skip functions with no line data
+                    return self.trace_function
                 
                 # Calculate measured total for better percentages
                 measured_total = sum(time_spent for _, time_spent in func_lines)
@@ -227,12 +263,15 @@ class CodeTracer:
                 
                 # Store the function stats
                 self.function_line_stats[func_key] = FunctionStats(
+                    function_key=func_key,
                     total_time=total_time,
                     lines=line_stats
                 )
                 
                 # Clean up
                 del self.function_start_times[func_key]
+                if func_key in self.function_active_lines:
+                    del self.function_active_lines[func_key]
         
         return self.trace_function
     
@@ -300,7 +339,8 @@ class CodeTracer:
         print('-' * 65)
         
         for func in function_summary:
-            print(f"| {func.function_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
+            func_name = func.file_name.split("/")[-1] + "::" + func.function_name
+            print(f"| {func_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
         
         print('-' * 65)
         print(f"| {'TOTAL':40} | {total_program_time:>10.3f} | 100.0% |")
@@ -329,6 +369,8 @@ class CodeTracer:
 tracer = CodeTracer()
 
 def set_custom_trace() -> None:
+    global tracer
+    tracer = CodeTracer()
     tracer.start_tracing()
 
 def stop_custom_trace() -> None:
