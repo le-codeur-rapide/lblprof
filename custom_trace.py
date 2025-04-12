@@ -20,6 +20,7 @@ SITE_PACKAGES_PATHS = [
     '/usr/local/lib',                      # Another common location
     'site-packages',                       # Catch any other site-packages
     'frozen importlib',                    # Frozen modules
+    'frozen zipimport',                    # Frozen zipimport modules
 ]
 
 def is_installed_module(filename):
