@@ -3,12 +3,12 @@ import random
 import sys
 import time
 
-line_times = {}
+# Track info for previous line
+previous_line_info = None
 last_time = None
-current_line = None
 
 def show_trace(frame, event, arg):
-    global last_time, current_line
+    global last_time, previous_line_info
     current_time = time.time()
     
     frame.f_trace_opcodes = True
@@ -30,31 +30,34 @@ def show_trace(frame, event, arg):
     else:
         source_line = "<line not available>"
     
-    # Calculate time spent since last event
-    elapsed_time = 0
-    if last_time is not None:
+    # Create current line info
+    current_info = {
+        'event': event,
+        'arg': arg,
+        'line_no': line_no,
+        'offset': offset,
+        'opcode': opcode.opname[code.co_code[offset]],
+        'locals': frame.f_locals.copy(),
+        'source': source_line
+    }
+    
+    # If we have previous line info, print it with the time elapsed since then
+    if previous_line_info and last_time:
         elapsed_time = (current_time - last_time) * 1000  # Convert to milliseconds
+        prev = previous_line_info
         
-        # Store time for the previous line
-        if current_line is not None:
-            print(f"Time spent on line {current_line}: {elapsed_time:.3f}ms")
-            line_times[current_line] = elapsed_time
+        print(f"| {prev['event']:10} | {str(prev['arg']):>4} |", end=' ')
+        print(f"{prev['line_no']:>4} | {prev['offset']:>6} |", end=' ')
+        print(f"{prev['opcode']:<18} | {str(prev['locals']):<35} | {elapsed_time:8.3f}ms | {prev['source']}")
     
-    # Get time for this line (if already recorded from a previous visit)
-    # print(f"line_no: {line_no}")
-    # print(f"line_times: {line_times}")
-    displayed_time = line_times.get(line_no, 0)
-    
-    # Update for next calculation
+    # Store current info as previous for next iteration
+    previous_line_info = current_info
     last_time = current_time
-    current_line = line_no
     
-    print(f"| {event:10} | {str(arg):>4} |", end=' ')
-    print(f"{line_no:>4} | {frame.f_lasti:>6} |", end=' ')
-    print(f"{opcode.opname[code.co_code[offset]]:<18} | {str(frame.f_locals):<35} | {displayed_time:8.3f}ms | {source_line}")
     return show_trace
 
 def set_custom_trace():
-    # Set the trace function
+    # Initialize the timer and start tracing
+    global last_time
+    last_time = time.time()
     sys.settrace(show_trace)
-    

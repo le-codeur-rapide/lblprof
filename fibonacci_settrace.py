@@ -39,7 +39,7 @@ header = f"| {'event':10} | {'arg':>4} | line | offset | {'opcode':^18} | {'loca
 print(header)
 set_custom_trace()
 fib(3)
-# other_function()
+other_function()
 
 sys.settrace(None)  # Stop tracing
 
