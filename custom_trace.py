@@ -30,9 +30,6 @@ def custom_trace(frame, event, arg):
     global function_start_times, line_times, line_hits, line_source
     global last_line_key, last_time
     
-    # Record time for this event
-    now = time.time()
-    
     # Set up function-level tracing
     frame.f_trace_opcodes = True
     code = frame.f_code
@@ -43,6 +40,9 @@ def custom_trace(frame, event, arg):
     # Skip installed modules
     if is_installed_module(file_name):
         return None  # Don't trace into installed modules
+    
+    # Record time for this event
+    now = time.time()
     
     # Create a unique key for this line
     line_key = (file_name, func_name, line_no)
