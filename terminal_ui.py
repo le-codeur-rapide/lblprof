@@ -23,9 +23,9 @@ class TerminalTreeUI:
         self.space = "    "
         
         # UI state
-        self.collapsed_nodes = set()  # Keys of collapsed nodes
-        self.current_pos = 0          # Current selected position
-        self.scroll_offset = 0        # Vertical scroll offset
+        self.expanded_nodes = set()  # Keys of expanded nodes (instead of collapsed)
+        self.current_pos = 0         # Current selected position
+        self.scroll_offset = 0       # Vertical scroll offset
         
     def _generate_display_data(self, root_nodes):
         """Generate flattened display data based on current UI state."""
@@ -44,8 +44,8 @@ class TerminalTreeUI:
             }
             display_data.append(node_data)
             
-            # Add children if not collapsed
-            if root.key not in self.collapsed_nodes:
+            # Add children only if explicitly expanded
+            if root.key in self.expanded_nodes:
                 self._add_children_to_display(display_data, root, 1)
         
         return display_data
@@ -67,8 +67,8 @@ class TerminalTreeUI:
             }
             display_data.append(node_data)
             
-            # Add child's children if not collapsed
-            if child.key not in self.collapsed_nodes:
+            # Add child's children only if explicitly expanded
+            if child.key in self.expanded_nodes:
                 self._add_children_to_display(display_data, child, depth + 1)
     
     def _get_sorted_children(self, parent):
@@ -103,7 +103,8 @@ class TerminalTreeUI:
         screen_y = 2  # Start after header
         root_spacers = set()  # Track where to add blank lines
         
-        # Find where root nodes change in the display data
+        # Find where are the root nodes
+        # and add spacers for them
         for i, node in enumerate(display_data):
             if i > 0 and node['depth'] == 0:
                 # This is a new root node, add a spacer before it
@@ -143,7 +144,7 @@ class TerminalTreeUI:
             # Get indicator for expandable nodes
             indicator = ""
             if node['has_children']:
-                indicator = "[+] " if node['line'].key in self.collapsed_nodes else "[-] "
+                indicator = "[+] " if node['line'].key not in self.expanded_nodes else "[-] "
             
             # Format the node using the provided formatter
             line_text = self.node_formatter(node['line'], indicator)
@@ -166,8 +167,8 @@ class TerminalTreeUI:
             return self.branch_last if node['is_last'] else self.branch_mid
         
         # For each level of depth, determine if we need a pipe or space
-        for d in range(node['depth']):
-            if d == node['depth'] - 1:
+        for d in range(node['depth']+1):
+            if d == node['depth']:
                 # Last level - add branch
                 prefix += self.branch_last if node['is_last'] else self.branch_mid
             else:
@@ -194,10 +195,10 @@ class TerminalTreeUI:
     def _toggle_collapse(self, display_data, current_node):
         """Toggle collapse state of the current node."""
         node_key = current_node['line'].key
-        if node_key in self.collapsed_nodes:
-            self.collapsed_nodes.remove(node_key)
+        if node_key in self.expanded_nodes:
+            self.expanded_nodes.remove(node_key)
         else:
-            self.collapsed_nodes.add(node_key)
+            self.expanded_nodes.add(node_key)
     
     def run(self):
         """Run the terminal UI."""

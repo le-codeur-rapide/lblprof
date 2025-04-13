@@ -60,6 +60,7 @@ def function_that_imports():
     time.sleep(1)  # Simulate some delay
 def main():
     fib(2)
+    fib(3)
     # time.sleep(1)  # Simulate some delay
     # function_2_second()
     # # other_function()
