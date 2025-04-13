@@ -239,17 +239,4 @@ def print_all_lines(n: Optional[int] = None) -> None:
     """
     tracer.print_line_summary(n=n)
 
-def print_call_tree() -> None:
-    """Print the complete call tree of traced execution."""
-    tracer.print_call_tree()
-
-def print_line_details(file_name: str, function_name: str, line_no: int) -> None:
-    """Print detailed statistics for a specific line.
-    
-    Args:
-        file_name: str - File containing the line
-        function_name: str - Function containing the line
-        line_no: int - Line number
-    """
-    tracer.print_line_details((file_name, function_name, line_no))
 

@@ -4,7 +4,7 @@ import random
 import sys
 import time
 
-from custom_trace import  print_all_lines, print_call_tree, print_summary, set_custom_trace, stop_custom_trace
+from custom_trace import  print_all_lines, print_summary, set_custom_trace, stop_custom_trace
 
 
 def fib(n):
@@ -81,8 +81,6 @@ stop_custom_trace()
 # build_tree()
 print_all_lines()
 print_summary()
-print_call_tree()
-
 
 # import inspect
 
