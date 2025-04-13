@@ -186,12 +186,12 @@ class LineStatsTree:
         logging.debug(f"Updating line event: {file_name}::{function_name}::{line_no} "
                         f"hits={hits}, time_ms={time_ms}, source={source}")
         logging.debug(f"Parent key: {parent_key}")
-        # Create line key
+
         line_key = (file_name, function_name, line_no)
-        
-        # Cache the source code
         self.source_cache[line_key] = source
+
         if parent_key not in self.lines:
+            logging.debug(f"Parent key {parent_key} not found in lines, creating it.")
             # If parent doesn't exist, create it
             self.create_line(
                 file_name=parent_key[0],
