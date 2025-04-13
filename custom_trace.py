@@ -85,7 +85,7 @@ class CodeTracer:
             logging.debug(f"new call stack: {self.call_stack}")
 
         elif event == 'line':
-            prev_file_name, prev_func_name, prev_line_no, prev_source, prev_parent_key = self.tempo_line_infos if self.tempo_line_infos else None
+            prev_file_name, prev_func_name, prev_line_no, prev_source, prev_parent_key = self.tempo_line_infos if self.tempo_line_infos else (None, None, None, None, None)
             parent_key = self.call_stack[-1] if self.call_stack else None
             elapsed = (now - self.last_time) * 1000
             if prev_file_name is None:
