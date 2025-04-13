@@ -200,7 +200,6 @@ class LineStatsTree:
 
         # Check if the parent exists and create it if needed
         if parent_key not in self.lines:
-            logging.debug(f"Parent key {parent_key} not found in lines, creating it.")
             # If parent doesn't exist, create it
             self.create_line(
                 file_name=parent_key[0],
@@ -234,9 +233,8 @@ class LineStatsTree:
         )
         
         # Make sure the parent-child relationship is established
-        if parent_key and parent_key in self.lines:
-            if line_key not in self.lines[parent_key].child_keys:
-                self.lines[parent_key].child_keys.append(line_key)
+        if parent_key and line_key not in self.lines[parent_key].child_keys:
+            self.lines[parent_key].child_keys.append(line_key)
             
 
     def display_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, 
