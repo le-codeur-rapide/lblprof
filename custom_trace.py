@@ -9,7 +9,7 @@ from line_stat_tree import LineStats, LineStatsTree
 
 class CodeTracer:
     def __init__(self):
-        # Data structures to store trace information - everything is lines now
+        # We use a dictionary to store the source code of lines
         self.line_source: Dict[Tuple[str, str, int], str] = {}
         
         # Call stack to handle nested calls
@@ -18,7 +18,7 @@ class CodeTracer:
         # Current line tracking
         self.last_time: float = time.time()
         
-        # Get user's home directory and site-packages paths to identify installed modules
+        # We use this to not try to trace modules not written by the user
         self.home_dir = os.path.expanduser('~')
         self.site_packages_paths = [
             os.path.join(self.home_dir, '.local/lib'),  # Local user packages
@@ -30,37 +30,30 @@ class CodeTracer:
             '<'                                        # built-in modules
         ]
         
-        # Complete line stats built from the raw data
-        self.line_stats: Dict[Tuple[str, str, int], LineStats] = {}
-        
-        # Root nodes (entry points with no parents)
-        self.root_lines: List[Tuple[str, str, int]] = []
+        # We use this to store the tree of line stats
         self.tree = LineStatsTree()
 
-        self.tempo_line_infos = None # Use to store the line info until next line to have the time of the line
+        # Use to store the line info until next line to have the time of the line
+        self.tempo_line_infos = None 
 
-    def is_installed_module(self, filename: str) -> bool:
-        """Check if a file belongs to an installed module rather than user code."""
-        return any(path in filename for path in self.site_packages_paths) or len(filename) ==   0
-    
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
+        # main function that will replace the default trace function 
+        # using sys.settrace
         frame.f_trace_opcodes = True
         code = frame.f_code
         func_name = code.co_name
         file_name = code.co_filename
         line_no = frame.f_lineno
 
-        self.tree.display_tree()
-        
         # Skip installed modules
-        if self.is_installed_module(file_name):
+        if self._is_installed_module(file_name):
             return None
         
         # Get time and create key
         now = time.time()
         line_key = (file_name, func_name, line_no)
 
-        # Get or store source
+        # Get or store source code of the line
         if line_key not in self.line_source:
             try:
                 with open(file_name, 'r') as f:
@@ -72,39 +65,43 @@ class CodeTracer:
         source = self.line_source[line_key]
 
         if event == 'call':
-            
-            # Get caller info
+            # A function is called
+
+            # Get caller info (line that calls the function)
             caller_file = frame.f_back.f_code.co_filename
             caller_func = frame.f_back.f_code.co_name
             caller_line = frame.f_back.f_lineno
             caller_key = (caller_file, caller_func, caller_line)
 
             # Update call stack
+            # Until we return from the function, all lines executed will have
+            # the caller line as parent
             self.call_stack.append(caller_key)
-            logging.debug(f"-------\nFunction call: {line_key}")
-            logging.debug(f"new call stack: {self.call_stack}")
 
         elif event == 'line':
-            prev_file_name, prev_func_name, prev_line_no, prev_source, prev_parent_key = self.tempo_line_infos if self.tempo_line_infos else (None, None, None, None, None)
+            # A line of code is executed
             parent_key = self.call_stack[-1] if self.call_stack else None
-            elapsed = (now - self.last_time) * 1000
-            if prev_file_name is None:
+            if not self.tempo_line_infos:
+                # This is the first line executed, there is no new duration to store in the tree, 
+                # we just store the current line info
                 self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
-            else:
             
-                self.tree.update_line_event(
-                    file_name=prev_file_name,
-                    function_name=prev_func_name,
-                    line_no=prev_line_no,
-                    hits=1,
-                    time_ms=elapsed,
-                    source=prev_source,
-                    parent_key=prev_parent_key
-                )
-                
-                self.last_time = now
-                self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
-                logging.debug(f"-------\nLine execution: {line_key}")
+            # If we have a previous line, we can calculate the time elapsed for it and 
+            # add it to the tree
+            elapsed = (now - self.last_time) * 1000
+            self.tree.update_line_event(
+                file_name=self.tempo_line_infos[0],
+                function_name=self.tempo_line_infos[1],
+                line_no=self.tempo_line_infos[2],
+                hits=1,
+                time_ms=elapsed,
+                source=self.tempo_line_infos[3],
+                parent_key=self.tempo_line_infos[4]
+            )
+            
+            # Store current line info for next line + reset last_time
+            self.last_time = now
+            self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
             
         elif event == 'return':
             # Update call stack
@@ -123,6 +120,9 @@ class CodeTracer:
     def stop_tracing(self) -> None:
         sys.settrace(None)
   
+    def _is_installed_module(self, filename: str) -> bool:
+        """Check if a file belongs to an installed module rather than user code."""
+        return any(path in filename for path in self.site_packages_paths) or len(filename) ==   0
     
 # Create a singleton instance for the module
 tracer = CodeTracer()
@@ -135,3 +135,6 @@ def stop_custom_trace() -> None:
     """Stop tracing code execution."""
     tracer.stop_tracing()
 
+def show_tree() -> None:
+    """Display the tree structure."""
+    tracer.tree.display_tree()

@@ -18,7 +18,8 @@ class LineStats(BaseModel):
     source: str = Field(..., min_length=1, description="Source code for this line")
     child_time: float = Field(default=0.0, ge=0, description="Time spent in called lines")
     
-    # Parent line that called this function (optional for root/top-level lines)
+    # Parent line that called this function
+    # If None then it 
     parent_key: Optional[Tuple[str, str, int]] = None
     
     # Children lines called by this line (populated during analysis)

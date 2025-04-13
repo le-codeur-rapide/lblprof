@@ -4,7 +4,7 @@ import random
 import sys
 import time
 
-from custom_trace import  set_custom_trace, stop_custom_trace
+from custom_trace import  set_custom_trace, show_tree, stop_custom_trace
 
 
 def fib(n):
@@ -61,9 +61,9 @@ def function_that_imports():
 def main():
     fib(2)
     time.sleep(1)  # Simulate some delay
-    # function_2_second()
+    function_2_second()
     # other_function()
-    # function_using_json()
+    function_using_json()
 
     # function_that_imports()
 def main2():
@@ -76,6 +76,8 @@ main()
 # main2()
 fib(2)
 stop_custom_trace()
+
+show_tree()
 
 
 # build_tree()
