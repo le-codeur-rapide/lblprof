@@ -120,12 +120,41 @@ class TerminalTreeUI:
         """Render the tree data on the screen."""
         # Limit display data to visible area
         visible_height = max_y - 4  # Account for header and help
-        visible_data = display_data[self.scroll_offset:self.scroll_offset + visible_height]
         
-        for i, node in enumerate(visible_data):
-            # Position on screen
-            y = i + 2  # Account for header
-            abs_pos = i + self.scroll_offset
+        # Initialize screen position and map of rows that need spacing
+        screen_y = 2  # Start after header
+        root_spacers = set()  # Track where to add blank lines
+        
+        # Find where root nodes change in the display data
+        for i, node in enumerate(display_data):
+            if i > 0 and node['depth'] == 0:
+                # This is a new root node, add a spacer before it
+                root_spacers.add(i)
+        
+        
+        # Calculate visible range accounting for spacers
+        visible_end = self.scroll_offset
+        visible_items = 0
+        for i in range(self.scroll_offset, len(display_data)):
+            if visible_items >= visible_height:
+                break
+            visible_end = i + 1
+            visible_items += 1
+            if i + 1 in root_spacers:
+                visible_items += 1  # Count the spacer
+        
+        # Render the visible portion
+        rendered_pos = 0
+        for i in range(self.scroll_offset, visible_end):
+            # Add a blank line before root nodes (except the first one)
+            if i in root_spacers:
+                screen_y += 1
+                rendered_pos += 1
+            
+            node = display_data[i]
+            
+            # Calculate screen position
+            abs_pos = i
             
             # Color based on selection
             color = curses.color_pair(2) if abs_pos == self.current_pos else curses.color_pair(1)
@@ -147,7 +176,9 @@ class TerminalTreeUI:
                 full_line = full_line[:max_x-3] + "..."
             
             # Add to screen
-            stdscr.addstr(y, 0, full_line, color)
+            stdscr.addstr(screen_y, 0, full_line, color)
+            screen_y += 1
+            rendered_pos += 1
     
     def _get_prefix(self, node, display_data):
         """Generate the tree prefix for a node based on its position in the hierarchy."""
