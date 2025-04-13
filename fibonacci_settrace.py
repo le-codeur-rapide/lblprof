@@ -3,8 +3,9 @@
 import random
 import sys
 import time
-
-from custom_trace import  set_custom_trace, show_tree, stop_custom_trace
+import logging
+logging.basicConfig(level=logging.INFO)
+from custom_trace import  set_custom_trace, show_interactive_tree, show_tree, stop_custom_trace
 
 
 def fib(n):
@@ -60,6 +61,7 @@ def function_that_imports():
     time.sleep(1)  # Simulate some delay
 def main():
     fib(2)
+    fib(3)
     time.sleep(1)  # Simulate some delay
     function_2_second()
     # other_function()
@@ -78,8 +80,8 @@ time.sleep(1)  # Simulate some delay
 fib(2)
 stop_custom_trace()
 
-show_tree()
-
+# show_tree()
+show_interactive_tree()
 
 # build_tree()
 

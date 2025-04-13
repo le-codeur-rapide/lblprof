@@ -4,6 +4,8 @@ from typing import List, Dict, Tuple, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from terminal_ui import TerminalTreeUI
+
 
 class LineStats(BaseModel):
     """Statistics for a single line of code."""
@@ -93,6 +95,7 @@ class LineStatsTree:
             additional_time: float - Additional time to add in milliseconds
             additional_hits: int - Additional hit count to add
         """
+        logging.debug(f"Updating line time: {line_key} [additional hits:{additional_hits} additional time:{additional_time:.2f}ms]")
         if line_key not in self.lines:
             # Line doesn't exist, can't update
             return
@@ -128,6 +131,7 @@ class LineStatsTree:
         Returns:
             LineStats - The created LineStats object
         """
+        logging.debug(f"Creating line: {file_name}::{function_name}::{line_no} [hits:{hits} time:{time_ms:.2f}ms]")
         # Create the LineStats object
         line_stats = LineStats(
             file_name=file_name,
@@ -195,6 +199,7 @@ class LineStatsTree:
             source: Source code of the line
             parent_key: Key of the parent line in the call stack, or None if this is a root
         """
+        logging.debug(f"Updating line event: {file_name}::{function_name}::{line_no} [hits:{hits} time:{time_ms:.2f}ms]")
         # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
 
@@ -370,3 +375,35 @@ class LineStatsTree:
                 # Add empty line between roots
                 if not is_last_root:
                     print()
+    def show_interactive(self):
+        """Display the tree in an interactive terminal interface."""
+        
+        # Define the data provider 
+        # Given a node (a line), return its children
+        def get_tree_data(node_key=None):
+            if node_key is None:
+                # Return root nodes
+                return self._get_root_lines()
+            else:
+                # Return children of the specified node
+                return [self.lines[child_key] for child_key in self.lines[node_key].child_keys 
+                        if child_key in self.lines]
+        
+        # Define the node formatter function
+        # Given a line, return its formatted string (displayed in the UI)
+        def format_node(line, indicator=""):
+            filename = os.path.basename(line.file_name)
+            line_id = f"{filename}::{line.function_name}::{line.line_no}"
+            
+            # Truncate source code
+            truncated_source = line.source[:40] + "..." if len(line.source) > 40 else line.source
+            
+            # Format stats
+            stats = f"[hits:{line.hits} self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms]"
+            
+            # Return formatted line
+            return f"{indicator}{line_id} {stats} - {truncated_source}"
+        
+        # Create and run the UI
+        ui = TerminalTreeUI(get_tree_data, format_node)
+        ui.run()
