@@ -3,7 +3,8 @@
 import random
 import sys
 import time
-
+import logging
+logging.basicConfig(level=logging.INFO)
 from custom_trace import  set_custom_trace, show_interactive_tree, show_tree, stop_custom_trace
 
 
@@ -61,10 +62,10 @@ def function_that_imports():
 def main():
     fib(2)
     fib(3)
-    # time.sleep(1)  # Simulate some delay
-    # function_2_second()
-    # # other_function()
-    # function_using_json()
+    time.sleep(1)  # Simulate some delay
+    function_2_second()
+    # other_function()
+    function_using_json()
 
     # function_that_imports()
 def main2():

@@ -95,6 +95,7 @@ class LineStatsTree:
             additional_time: float - Additional time to add in milliseconds
             additional_hits: int - Additional hit count to add
         """
+        logging.debug(f"Updating line time: {line_key} [additional hits:{additional_hits} additional time:{additional_time:.2f}ms]")
         if line_key not in self.lines:
             # Line doesn't exist, can't update
             return
@@ -130,6 +131,7 @@ class LineStatsTree:
         Returns:
             LineStats - The created LineStats object
         """
+        logging.debug(f"Creating line: {file_name}::{function_name}::{line_no} [hits:{hits} time:{time_ms:.2f}ms]")
         # Create the LineStats object
         line_stats = LineStats(
             file_name=file_name,
@@ -197,6 +199,7 @@ class LineStatsTree:
             source: Source code of the line
             parent_key: Key of the parent line in the call stack, or None if this is a root
         """
+        logging.debug(f"Updating line event: {file_name}::{function_name}::{line_no} [hits:{hits} time:{time_ms:.2f}ms]")
         # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
 
