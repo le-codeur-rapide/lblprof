@@ -4,7 +4,7 @@ import sys
 import time
 import os
 from typing import Dict, List, Tuple, Any
-from line_stat_tree import LineStats, LineStatsTree
+from .line_stat_tree import LineStats, LineStatsTree
 
 
 class CodeTracer:
@@ -136,23 +136,3 @@ class CodeTracer:
         """Check if a file belongs to an installed module rather than user code."""
         return any(path in filename for path in self.site_packages_paths) or len(filename) ==   0
     
-# Create a singleton instance for the module
-tracer = CodeTracer()
-
-def set_custom_trace() -> None:
-    """Start tracing code execution."""
-    tracer.start_tracing()
-
-def stop_custom_trace() -> None:
-    """Stop tracing code execution."""
-    tracer.stop_tracing()
-
-def show_tree() -> None:
-    """Display the tree structure."""
-    tracer.tree.display_tree()
-
-# Add a module-level function to expose the interactive UI
-def show_interactive_tree():
-    """Display an interactive tree in the terminal."""
-    from custom_trace import tracer
-    tracer.tree.show_interactive()

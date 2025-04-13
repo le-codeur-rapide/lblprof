@@ -5,7 +5,7 @@ import sys
 import time
 import logging
 logging.basicConfig(level=logging.INFO)
-from custom_trace import  set_custom_trace, show_interactive_tree, show_tree, stop_custom_trace
+from lbl_profiler import  set_custom_trace, show_interactive_tree, show_tree, stop_custom_trace
 
 
 def fib(n):
