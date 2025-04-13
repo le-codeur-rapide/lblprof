@@ -140,3 +140,9 @@ def stop_custom_trace() -> None:
 def show_tree() -> None:
     """Display the tree structure."""
     tracer.tree.display_tree()
+
+# Add a module-level function to expose the interactive UI
+def show_interactive_tree():
+    """Display an interactive tree in the terminal."""
+    from custom_trace import tracer
+    tracer.tree.show_interactive()
