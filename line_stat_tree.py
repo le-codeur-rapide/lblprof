@@ -30,6 +30,11 @@ class LineStats(BaseModel):
         return (self.file_name, self.function_name, self.line_no)
     
     @property
+    def extended_key(self) -> Tuple:
+        """Get an extended unique key that includes parent information."""
+        return (self.file_name, self.function_name, self.line_no, self.parent_key)
+    
+    @property
     def self_time(self) -> float:
         """Get time spent on this line excluding child calls."""
         return max(0.0, self.time - self.child_time)
