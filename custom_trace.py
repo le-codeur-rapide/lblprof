@@ -324,29 +324,92 @@ class CodeTracer:
         """Return line statistics for all functions."""
         return self.function_line_stats
     
-    # Display methods - these turn the data into formatted output
-    def print_function_summary(self) -> None:
-        """Print a summary of all function execution times."""
-        summary = self.get_function_summary()
+    def print_function_summary(self, current_file: Optional[str] = None, n: Optional[int] = None) -> None:
+        """Print a summary of function execution times.
         
-        total_program_time = summary.total_time_ms
-        function_summary = summary.functions
-        
-        print("\n\n============================================================")
-        print("FUNCTION EXECUTION TIME SUMMARY")
-        print("============================================================")
-        print(f"| {'Function':^40} | {'Time(ms)':>10} | {'%':>6} |")
-        print('-' * 65)
-        
-        for func in function_summary:
-            if func.time_ms < 10:
-                continue
-            func_name = func.file_name.split("/")[-1] + "::" + func.function_name
-            print(f"| {func_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
-        
-        print('-' * 65)
-        print(f"| {'TOTAL':40} | {total_program_time:>10.3f} | 100.0% |")
-        print("============================================================")
+        Args:
+            current_file: Optional[str] - If provided, only shows functions from this file.
+                                        If None, shows functions from all files.
+            n: Optional[int] - If provided, only shows the top n longest-running functions.
+                            If None, shows all functions.
+        """
+        try:
+            summary = self.get_function_summary()
+            
+            total_program_time = summary.total_time_ms
+            function_summary = summary.functions
+            
+            # Filter by file if requested
+            if current_file:
+                current_file = os.path.abspath(current_file)
+                original_count = len(function_summary)
+                function_summary = [
+                    func for func in function_summary 
+                    if os.path.abspath(func.file_name) == current_file
+                ]
+                filtered_count = len(function_summary)
+                
+                if filtered_count == 0:
+                    print(f"No functions traced in file: {os.path.basename(current_file)}")
+                    return
+            
+            # Sort by time (descending)
+            function_summary.sort(key=lambda x: x.time_ms, reverse=True)
+            
+            # Limit to top n if specified
+            if n is not None and len(function_summary) > n:
+                function_summary = function_summary[:n]
+            
+            # Calculate actual displayed total time (not sum of all functions since that double-counts)
+            # For file-specific display, we need to recalculate the percentage based on the file's contribution
+            # rather than simply summing the individual function times
+            if current_file:
+                file_functions_time = sum(func.time_ms for func in function_summary)
+                # This is the sum of the filtered functions, used only for display
+                displayed_total_time = file_functions_time
+            else:
+                # When showing all functions, use the computed total program time
+                displayed_total_time = total_program_time
+            
+            # Create title based on filtering
+            title = "FUNCTION EXECUTION TIME SUMMARY"
+            if current_file:
+                title += f" FOR: {os.path.basename(current_file)}"
+            if n is not None:
+                title += f" (TOP {n})"
+            
+            # Print the summary
+            print("\n\n============================================================")
+            print(title)
+            print("============================================================")
+            print(f"| {'Function':^40} | {'Time(ms)':>10} | {'%':>6} |")
+            print('-' * 65)
+            
+            for func in function_summary:
+                if func.time_ms < 10:
+                    continue
+                    
+                # Get just the filename without path
+                filename = os.path.basename(func.file_name)
+                func_name = f"{filename}::{func.function_name}"
+                
+                # If filtering by file, percentage is relative to file total
+                if current_file:
+                    file_percent = (func.time_ms / displayed_total_time * 100) if displayed_total_time > 0 else 0
+                    print(f"| {func_name:40} | {func.time_ms:>10.3f} | {file_percent:>6.1f}% |")
+                else:
+                    # Otherwise use program percentage
+                    print(f"| {func_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
+            
+            print('-' * 65)
+            
+            # Show displayed total - this is the key change
+            print(f"| {'DISPLAYED TOTAL':40} | {displayed_total_time:>10.3f} | 100.0% |")
+            
+            # No longer showing program total when filtering as it causes confusion
+            print("============================================================")
+        except ValueError as e:
+            print(f"Error: {e}")
     
     def print_function_line_stats(self, func_key: Tuple[str, str]) -> None:
         """Print detailed line statistics for a specific function."""
@@ -399,8 +462,20 @@ def set_custom_trace() -> None:
 def stop_custom_trace() -> None:
     tracer.stop_tracing()
 
-def print_summary() -> None:
-    tracer.print_function_summary()
+def print_summary(n: Optional[int] = None) -> None:
+    """Print a summary of function execution times.
+    
+    By default, only shows functions from the file where this function is called.
+    
+    Args:
+        n: Optional[int] - If provided, only shows the top n longest-running functions.
+    """
+    # Get the current file path using inspection
+    import inspect
+    caller_frame = inspect.currentframe().f_back
+    current_file = caller_frame.f_code.co_filename if caller_frame else None
+    
+    tracer.print_function_summary(current_file=current_file, n=n)
 
 def print_all_details() -> None:
     tracer.print_all_line_stats(5)
