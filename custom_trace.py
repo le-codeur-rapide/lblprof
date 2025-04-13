@@ -131,21 +131,11 @@ class CodeTracer:
 
             elapsed = (now - self.last_time) * 1000
             
-            # self.tree.update_line_event(
-            #     file_name=file_name,
-            #     function_name=func_name,
-            #     line_no=line_no,
-            #     hits=1,
-            #     time_ms=elapsed,
-            #     source=source,
-            #     parent_key=parent_key
-            # )
-            
             # Update call stack
             if self.call_stack:
                 self.call_stack.pop()
             
-            self.last_time = now
+            # self.last_time = now
             logging.debug(f"-------\nFunction return: {line_key}")
             logging.debug(f"new call stack: {self.call_stack}")
         return self.trace_function
