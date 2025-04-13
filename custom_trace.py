@@ -1,3 +1,4 @@
+import inspect
 import logging
 logging.basicConfig(level=logging.DEBUG)
 import sys
@@ -86,13 +87,13 @@ class CodeTracer:
         self.line_stats: Dict[Tuple[str, str, int], LineStats] = {}
         
         # Root nodes (entry points with no parents)
-        # self.root_lines: List[Tuple[str, str, int]] = []
+        self.root_lines: List[Tuple[str, str, int]] = []
 
-    @property
-    def root_lines(self) -> List[Tuple[str, str, int]]:
-        """Get all root lines (lines with no parents)."""
-        print("Root lines:", self.line_parents)
-        return [key for key in self.line_parents if self.line_parents[key] is None]
+    # @property
+    # def root_lines(self) -> List[Tuple[str, str, int]]:
+    #     """Get all root lines (lines with no parents)."""
+    #     print("Root lines:", self.line_parents)
+    #     return [key for key in self.line_parents if self.line_parents[key] is None]
 
     def is_installed_module(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code."""
@@ -100,8 +101,14 @@ class CodeTracer:
     
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # Set up function-level tracing
+        # display frame objects
+        # for key, value in inspect.getmembers(frame):
+        #     logging.debug(f"{key}: {value}")
         frame.f_trace_opcodes = True
         code = frame.f_code
+        # display code objects
+        # for key, value in inspect.getmembers(code):
+        #     logging.debug(f"{key}: {value}")
         func_name = code.co_name
         file_name = code.co_filename
         line_no = frame.f_lineno
@@ -127,14 +134,27 @@ class CodeTracer:
                 self.line_source[line_key] = "<source not available>"
 
         if event == 'call':
-
             logging.debug(f"-------\nFunction call: {line_key}")
-            # Push the lne that did the call to the stack
-            self.call_stack.append(self.last_line_key)
-            logging.debug(f"added to call stack: {self.call_stack}\n----")
-            # Record the entry point for this function
+            
+            caller_file = frame.f_back.f_code.co_filename
+            caller_func = frame.f_back.f_code.co_name
+            caller_line = frame.f_back.f_lineno
+            caller_key = (caller_file, caller_func, caller_line)
+            
+            # Store this caller as the parent for this function's entry point
+            self.line_parents[line_key] = caller_key
+            self.line_children[caller_key].add(line_key)
+            
+            logging.debug(f"Called by: {caller_key}")
+            # if stack is empty, we add caller line to root lines
+            if not self.call_stack:
+                self.root_lines.append(caller_key)
+                logging.debug(f"Added to root lines: {self.root_lines}")
+            # Push the caller to the call stack
+            self.call_stack.append(caller_key)
+            logging.debug(f"Added to call stack: {self.call_stack}\n----")
 
-        
+            
         elif event == 'line':
             logging.debug(f"-------\nLine execution: {line_key}")
             # Count this line hit
@@ -143,7 +163,13 @@ class CodeTracer:
             # If we have a previous line, record its time
             if self.last_line_key and self.last_time:
                 elapsed = (now - self.last_time) * 1000
+                logging.debug(f"Elapsed time for {self.last_line_key}: {elapsed:.3f}ms")
                 self.line_times[self.last_line_key] += elapsed
+            
+                # update time parent line
+                parent_key = self.line_parents.get(line_key)
+                if parent_key:
+                    self.line_times[parent_key] += elapsed
             
             # Establish parent relationship if we're in a function
             if self.call_stack:
@@ -163,6 +189,7 @@ class CodeTracer:
             # If we have a line we're timing, record its final time
             if self.last_line_key and self.last_time:
                 elapsed = (now - self.last_time) * 1000
+                logging.debug(f"Elapsed time for {self.last_line_key}: {elapsed:.3f}ms")
                 self.line_times[self.last_line_key] += elapsed
             
             # Pop from call stack if we're returning from a function
@@ -191,6 +218,7 @@ class CodeTracer:
     def _build_line_stats(self) -> None:
         """Build complete line statistics from the raw trace data."""
         # First, create all LineStats objects
+        logging.debug("line_times: %s", self.line_times)
         for line_key, time_spent in self.line_times.items():
             # Skip lines with negligible time
             if time_spent < 0.1:
@@ -222,7 +250,12 @@ class CodeTracer:
                     child_time += self.line_stats[child_key].time
             
             stats.child_time = child_time
-        
+            
+            # Ensure total time is at least the sum of all child times
+            # This fixes cases where a parent line doesn't register enough time to cover all its children
+            if stats.time < child_time:
+                stats.time = child_time
+            
         # Calculate total program time
         self.total_time_ms = sum(stats.self_time for stats in self.line_stats.values())
 
@@ -236,6 +269,9 @@ class CodeTracer:
     
     def get_root_lines(self) -> List[LineStats]:
         """Get all root (entry point) lines."""
+        logging.debug(f"Root lines: {self.root_lines}")
+        logging.debug(f"Line stats: {self.line_stats}")
+        logging.debug(f"result: {[self.line_stats[key] for key in self.root_lines if key in self.line_stats]}")
         return [self.line_stats[key] for key in self.root_lines if key in self.line_stats]
     
     def get_line_children(self, line_key: Tuple[str, str, int]) -> List[LineStats]:
@@ -321,7 +357,7 @@ class CodeTracer:
         if depth > max_depth:
             return  # Prevent infinite recursion
             
-        indent = "  " * depth
+        indent = "    " * depth
         
         if root_key:
             # Print a specific subtree
@@ -372,8 +408,8 @@ class CodeTracer:
             print("====================================")
             
             # Sort roots by total time
-            root_lines.sort(key=lambda x: x.total_time, reverse=True)
-            
+            root_lines.sort(key=lambda x: x.total_time, reverse=False)
+            logging.debug(f"Root lines: {root_lines}")
             for root in root_lines:
                 self.print_call_tree(root.key, 0, max_depth)
                 print()  # Empty line between roots

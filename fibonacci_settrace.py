@@ -60,19 +60,21 @@ def function_that_imports():
     time.sleep(1)  # Simulate some delay
 def main():
     fib(3)
-    function_2_second()
+    # function_2_second()
+    # other_function()
+    # function_using_json()
+
+    # function_that_imports()
 
 
 set_custom_trace()
+
 main()
-
-# other_function()
-# function_using_json()
-
-# function_that_imports()
-
-sys.settrace(None)
+fib(3)
 stop_custom_trace()
+
+
+# build_tree()
 print_all_lines()
 print_summary()
 print_call_tree()
