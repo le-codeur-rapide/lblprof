@@ -277,12 +277,6 @@ class LineStatsTree:
                 parent_key=parent_key
             )
             
-        # If this is a root line (no parent), ensure it's in root_lines
-        # logging.debug(f"Checking if line is root: {line_key} with parent {parent_key}")
-        # logging.debug(f"Root lines: {self.root_lines}")
-        # if parent_key not in self.lines and line_key not in self.root_lines:
-        #     logging.debug(f"Adding line to root lines: {line_key}")
-        #     self.root_lines.append(line_key)
 
     def display_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, 
                 max_depth: int = 10, is_last: bool = True, prefix: str = "") -> None:
@@ -357,7 +351,6 @@ class LineStatsTree:
         else:
             # Print all root trees
             root_lines = self.get_root_lines()
-            logging.debug(f"Root lines: {root_lines}")
             if not root_lines:
                 print("No root lines found in stats")
                 return
