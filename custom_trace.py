@@ -107,7 +107,7 @@ class CodeTracer:
                 parent_key=caller_key
             )
 
-            
+
             
         elif event == 'line':
             parent_key = self.call_stack[-1] if self.call_stack else None
@@ -131,15 +131,15 @@ class CodeTracer:
 
             elapsed = (now - self.last_time) * 1000
             
-            self.tree.update_line_event(
-                file_name=file_name,
-                function_name=func_name,
-                line_no=line_no,
-                hits=1,
-                time_ms=elapsed,
-                source=source,
-                parent_key=parent_key
-            )
+            # self.tree.update_line_event(
+            #     file_name=file_name,
+            #     function_name=func_name,
+            #     line_no=line_no,
+            #     hits=1,
+            #     time_ms=elapsed,
+            #     source=source,
+            #     parent_key=parent_key
+            # )
             
             # Update call stack
             if self.call_stack:
