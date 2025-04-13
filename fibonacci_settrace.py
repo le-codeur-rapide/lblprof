@@ -59,7 +59,7 @@ def function_that_imports():
     from other_module import some_function
     time.sleep(1)  # Simulate some delay
 def main():
-    fib(3)
+    fib(2)
     # function_2_second()
     # other_function()
     # function_using_json()
@@ -70,7 +70,7 @@ def main():
 set_custom_trace()
 
 main()
-fib(3)
+# fib(3)
 stop_custom_trace()
 
 

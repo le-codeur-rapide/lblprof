@@ -6,45 +6,7 @@ import time
 import os
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple, Optional, Any
-from pydantic import BaseModel, Field
-from pydantic import (
-    ConfigDict
-)
-
-class LineStats(BaseModel):
-    """Statistics for a single line of code."""
-    model_config = ConfigDict(validate_assignment=True)
-    
-    file_name: str = Field(..., min_length=1, description="File containing this line")
-    function_name: str = Field(..., min_length=1, description="Function containing this line")
-    line_no: int = Field(..., ge=1, description="Line number in the source file")
-    hits: int = Field(..., ge=0, description="Number of times this line was executed")
-    time: float = Field(..., ge=0, description="Time spent on this line in milliseconds")
-    avg_time: float = Field(..., ge=0, description="Average time per hit in milliseconds")
-    source: str = Field(..., min_length=1, description="Source code for this line")
-    child_time: float = Field(default=0.0, ge=0, description="Time spent in called lines")
-    
-    # Parent line that called this function (optional for root/top-level lines)
-    parent_key: Optional[Tuple[str, str, int]] = None
-    
-    # Children lines called by this line (populated during analysis)
-    child_keys: List[Tuple[str, str, int]] = Field(default_factory=list)
-    
-    @property
-    def key(self) -> Tuple[str, str, int]:
-        """Get the unique key for this line."""
-        return (self.file_name, self.function_name, self.line_no)
-    
-    @property
-    def self_time(self) -> float:
-        """Get time spent on this line excluding child calls."""
-        return max(0.0, self.time - self.child_time)
-    
-    @property
-    def total_time(self) -> float:
-        """Get total time including child calls."""
-        return self.time
-
+from line_stat_tree import LineStats, LineStatsTree
 
 
 class CodeTracer:
@@ -65,8 +27,7 @@ class CodeTracer:
         self.call_stack: List[Tuple[str, str, int]] = []
         
         # Current line tracking
-        self.last_line_key: Optional[Tuple[str, str, int]] = None
-        self.last_time: Optional[float] = None
+        self.last_time: float = time.time()
         
         # Statistics for report generation
         self.total_time_ms: float = 0
@@ -88,42 +49,30 @@ class CodeTracer:
         
         # Root nodes (entry points with no parents)
         self.root_lines: List[Tuple[str, str, int]] = []
-
-    # @property
-    # def root_lines(self) -> List[Tuple[str, str, int]]:
-    #     """Get all root lines (lines with no parents)."""
-    #     print("Root lines:", self.line_parents)
-    #     return [key for key in self.line_parents if self.line_parents[key] is None]
+        self.tree = LineStatsTree()
 
     def is_installed_module(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code."""
         return any(path in filename for path in self.site_packages_paths) or len(filename) ==   0
     
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
-        # Set up function-level tracing
-        # display frame objects
-        # for key, value in inspect.getmembers(frame):
-        #     logging.debug(f"{key}: {value}")
         frame.f_trace_opcodes = True
         code = frame.f_code
-        # display code objects
-        # for key, value in inspect.getmembers(code):
-        #     logging.debug(f"{key}: {value}")
         func_name = code.co_name
         file_name = code.co_filename
         line_no = frame.f_lineno
+
+        self.tree.display_tree()
         
         # Skip installed modules
         if self.is_installed_module(file_name):
-            return None  # Don't trace into installed modules
+            return None
         
-        # Record time for this event
+        # Get time and create key
         now = time.time()
-        
-        # Create a unique key for this line
         line_key = (file_name, func_name, line_no)
 
-        # Store source line if we haven't seen it yet
+        # Get or store source
         if line_key not in self.line_source:
             try:
                 with open(file_name, 'r') as f:
@@ -132,140 +81,70 @@ class CodeTracer:
                     self.line_source[line_key] = source
             except Exception:
                 self.line_source[line_key] = "<source not available>"
+        source = self.line_source[line_key]
 
         if event == 'call':
-            logging.debug(f"-------\nFunction call: {line_key}")
             
+            # Get caller info
             caller_file = frame.f_back.f_code.co_filename
             caller_func = frame.f_back.f_code.co_name
             caller_line = frame.f_back.f_lineno
             caller_key = (caller_file, caller_func, caller_line)
-            
-            # Store this caller as the parent for this function's entry point
-            self.line_parents[line_key] = caller_key
-            self.line_children[caller_key].add(line_key)
-            
-            logging.debug(f"Called by: {caller_key}")
-            # if stack is empty, we add caller line to root lines
-            if not self.call_stack:
-                self.root_lines.append(caller_key)
-                logging.debug(f"Added to root lines: {self.root_lines}")
-            # Push the caller to the call stack
-            self.call_stack.append(caller_key)
-            logging.debug(f"Added to call stack: {self.call_stack}\n----")
 
+            # Update call stack
+            self.call_stack.append(caller_key)
+            logging.debug(f"-------\nFunction call: {line_key}")
+            logging.debug(f"new call stack: {self.call_stack}")
             
         elif event == 'line':
-            logging.debug(f"-------\nLine execution: {line_key}")
-            # Count this line hit
-            self.line_hits[line_key] += 1
+            parent_key = self.call_stack[-1] if self.call_stack else None
+            elapsed = (now - self.last_time) * 1000
             
-            # If we have a previous line, record its time
-            if self.last_line_key and self.last_time:
-                elapsed = (now - self.last_time) * 1000
-                logging.debug(f"Elapsed time for {self.last_line_key}: {elapsed:.3f}ms")
-                self.line_times[self.last_line_key] += elapsed
+            self.tree.update_line_event(
+                file_name=file_name,
+                function_name=func_name,
+                line_no=line_no,
+                hits=1,
+                time_ms=elapsed,
+                source=source,
+                parent_key=parent_key
+            )
             
-                # update time parent line
-                parent_key = self.line_parents.get(line_key)
-                if parent_key:
-                    self.line_times[parent_key] += elapsed
-            
-            # Establish parent relationship if we're in a function
-            if self.call_stack:
-                func_entry = self.call_stack[-1]
-                # update parent child relations
-                self.line_parents[line_key] = func_entry
-                self.line_children[func_entry].add(line_key)
-                
-            
-            # Store current line for next calculation
-            self.last_line_key = line_key
             self.last_time = now
-        
-        elif event == 'return':
-            logging.debug(f"-------\nFunction return: {line_key}")
-
-            # If we have a line we're timing, record its final time
-            if self.last_line_key and self.last_time:
-                elapsed = (now - self.last_time) * 1000
-                logging.debug(f"Elapsed time for {self.last_line_key}: {elapsed:.3f}ms")
-                self.line_times[self.last_line_key] += elapsed
+            logging.debug(f"-------\nLine execution: {line_key}")
             
-            # Pop from call stack if we're returning from a function
+        elif event == 'return':
+            parent_key = self.call_stack[-1] if self.call_stack else None
+
+            elapsed = (now - self.last_time) * 1000
+            
+            self.tree.update_line_event(
+                file_name=file_name,
+                function_name=func_name,
+                line_no=line_no,
+                hits=1,
+                time_ms=elapsed,
+                source=source,
+                parent_key=parent_key
+            )
+            
+            # Update call stack
             if self.call_stack:
                 self.call_stack.pop()
             
-            self.last_line_key = self.call_stack[-1] if self.call_stack else None
-            logging.debug(f"removed from call stack: {self.call_stack}\n----")
-        
-        else: 
-            logging.debug(f"-------\nOther event: {event} for {line_key}")
-        
+            self.last_time = now
+            logging.debug(f"-------\nFunction return: {line_key}")
+            logging.debug(f"new call stack: {self.call_stack}")
         return self.trace_function
     
     def start_tracing(self) -> None:
         # Reset state
         self.__init__()
-        # Start tracing
         sys.settrace(self.trace_function)
     
     def stop_tracing(self) -> None:
         sys.settrace(None)
-        # Build the complete line stats
-        self._build_line_stats()
   
-    def _build_line_stats(self) -> None:
-        """Build complete line statistics from the raw trace data."""
-        # First, create all LineStats objects
-        logging.debug("line_times: %s", self.line_times)
-        for line_key, time_spent in self.line_times.items():
-            # Skip lines with negligible time
-            if time_spent < 0.1:
-                continue
-            file_name, func_name, line_no = line_key
-            hits = self.line_hits[line_key]
-            source = self.line_source.get(line_key, "<source not available>")
-            parent_key = self.line_parents.get(line_key)
-            child_keys = list(self.line_children.get(line_key, set()))
-            
-                
-            self.line_stats[line_key] = LineStats(
-                file_name=file_name,
-                function_name=func_name,
-                line_no=line_no,
-                hits=hits,
-                time=time_spent,
-                avg_time=time_spent / hits if hits else 0,
-                source=source,
-                parent_key=parent_key,
-                child_keys=child_keys
-            )
-        
-        # Next, calculate child_time for each line
-        for line_key, stats in self.line_stats.items():
-            child_time = 0.0
-            for child_key in stats.child_keys:
-                if child_key in self.line_stats:
-                    child_time += self.line_stats[child_key].time
-            
-            stats.child_time = child_time
-            
-            # Ensure total time is at least the sum of all child times
-            # This fixes cases where a parent line doesn't register enough time to cover all its children
-            if stats.time < child_time:
-                stats.time = child_time
-            
-        # Calculate total program time
-        self.total_time_ms = sum(stats.self_time for stats in self.line_stats.values())
-
-    def get_line_stats(self, line_key: Tuple[str, str, int]) -> Optional[LineStats]:
-        """Get statistics for a specific line."""
-        return self.line_stats.get(line_key)
-    
-    def get_all_line_stats(self) -> Dict[Tuple[str, str, int], LineStats]:
-        """Get statistics for all lines."""
-        return self.line_stats
     
     def get_root_lines(self) -> List[LineStats]:
         """Get all root (entry point) lines."""
@@ -427,9 +306,9 @@ class CodeTracer:
         filename = os.path.basename(line.file_name)
         line_id = f"{filename}::{line.function_name}::{line.line_no}"
         
-        print(f"\n\n============================================================")
+        print("\n\n============================================================")
         print(f"LINE DETAILS: {line_id}")
-        print(f"============================================================")
+        print("============================================================")
         print(f"Source: {line.source}")
         print(f"Hits: {line.hits}")
         print(f"Self time: {line.self_time:.3f}ms")
@@ -478,7 +357,6 @@ def print_summary(n: Optional[int] = None) -> None:
         n: Optional[int] - If provided, only shows the top n lines.
     """
     # Get the current file path using inspection
-    import inspect
     caller_frame = inspect.currentframe().f_back
     current_file = caller_frame.f_code.co_filename if caller_frame else None
     
@@ -505,3 +383,4 @@ def print_line_details(file_name: str, function_name: str, line_no: int) -> None
         line_no: int - Line number
     """
     tracer.print_line_details((file_name, function_name, line_no))
+
