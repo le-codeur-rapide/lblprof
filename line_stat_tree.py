@@ -379,9 +379,6 @@ class LineStatsTree:
         # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
         
-        # Extended line key that includes parent information to differentiate the same line called from different places
-        extended_key = (file_name, function_name, line_no, parent_key)
-        
         # Cache the source code
         self.source_cache[line_key] = source
 
@@ -410,7 +407,7 @@ class LineStatsTree:
                 return
                 
         # If we get here, we didn't find the line with this specific parent - create it
-        new_line = self.create_line(
+        self.create_line(
             file_name=file_name,
             function_name=function_name,
             line_no=line_no,
