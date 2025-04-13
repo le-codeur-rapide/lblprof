@@ -167,6 +167,15 @@ class LineStatsTree:
             List[LineStats] - All root LineStats objects
         """
         return [self.lines[key] for key in self.root_lines if key in self.lines]
+
+    def _get_source_code(self, file_name: str, line_no: int) -> str:
+        """Get the source code for a specific line in a file."""
+        with open(file_name, 'r') as f:
+            lines = f.readlines()
+            if line_no - 1 < len(lines):
+                return lines[line_no - 1].strip()
+            else:
+                return ""
     
 
     def update_line_event(self, file_name: str, function_name: str, line_no: int, 
@@ -199,7 +208,10 @@ class LineStatsTree:
                 line_no=parent_key[2],
                 hits=0,
                 time_ms=0,
-                source="empo code",
+                source=self._get_source_code(
+                    file_name=parent_key[0],
+                    line_no=parent_key[2]
+                ),
                 parent_key=None
             )
             
