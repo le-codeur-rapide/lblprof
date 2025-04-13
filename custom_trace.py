@@ -12,8 +12,6 @@ from line_stat_tree import LineStats, LineStatsTree
 class CodeTracer:
     def __init__(self):
         # Data structures to store trace information - everything is lines now
-        self.line_times: Dict[Tuple[str, str, int], float] = defaultdict(float)
-        self.line_hits: Dict[Tuple[str, str, int], int] = defaultdict(int)
         self.line_source: Dict[Tuple[str, str, int], str] = {}
         
         # Track parent-child relationships between lines
@@ -50,6 +48,8 @@ class CodeTracer:
         # Root nodes (entry points with no parents)
         self.root_lines: List[Tuple[str, str, int]] = []
         self.tree = LineStatsTree()
+
+        self.tempo_line_infos = None # Use to store the line info until next line to have the time of the line
 
     def is_installed_module(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code."""
@@ -110,32 +110,32 @@ class CodeTracer:
 
             
         elif event == 'line':
+            prev_file_name, prev_func_name, prev_line_no, prev_source, prev_parent_key = self.tempo_line_infos if self.tempo_line_infos else (None, None, None, None, None)
             parent_key = self.call_stack[-1] if self.call_stack else None
             elapsed = (now - self.last_time) * 1000
+            if prev_file_name is None:
+                self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
+            else:
             
-            self.tree.update_line_event(
-                file_name=file_name,
-                function_name=func_name,
-                line_no=line_no,
-                hits=1,
-                time_ms=elapsed,
-                source=source,
-                parent_key=parent_key
-            )
-            
-            self.last_time = now
-            logging.debug(f"-------\nLine execution: {line_key}")
+                self.tree.update_line_event(
+                    file_name=prev_file_name,
+                    function_name=prev_func_name,
+                    line_no=prev_line_no,
+                    hits=1,
+                    time_ms=elapsed,
+                    source=prev_source,
+                    parent_key=prev_parent_key
+                )
+                
+                self.last_time = now
+                self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
+                logging.debug(f"-------\nLine execution: {line_key}")
             
         elif event == 'return':
-            parent_key = self.call_stack[-1] if self.call_stack else None
-
-            elapsed = (now - self.last_time) * 1000
-            
             # Update call stack
             if self.call_stack:
                 self.call_stack.pop()
             
-            # self.last_time = now
             logging.debug(f"-------\nFunction return: {line_key}")
             logging.debug(f"new call stack: {self.call_stack}")
         return self.trace_function
