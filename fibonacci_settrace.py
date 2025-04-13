@@ -4,7 +4,7 @@ import random
 import sys
 import time
 
-from custom_trace import print_all_details, print_summary, set_custom_trace
+from custom_trace import  print_all_lines, print_call_tree, print_summary, set_custom_trace, stop_custom_trace
 
 
 def fib(n):
@@ -58,21 +58,24 @@ def function_2_second():
 def function_that_imports():
     from other_module import some_function
     time.sleep(1)  # Simulate some delay
+def main():
+    fib(3)
+    function_2_second()
 
-header = f"| {'event':10} | {'arg':>4} | line | offset | {'opcode':^18} | {'locals':^35} |"
-print(header)
+
 set_custom_trace()
-fib(3)
-other_function()
-function_using_json()
-function_2_second()
-function_that_imports()
+main()
 
+# other_function()
+# function_using_json()
 
-sys.settrace(None)  # Stop tracing
-print_all_details()
+# function_that_imports()
+
+sys.settrace(None)
+stop_custom_trace()
+print_all_lines()
 print_summary()
-
+print_call_tree()
 
 
 # import inspect
