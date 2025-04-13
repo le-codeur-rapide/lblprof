@@ -96,16 +96,6 @@ class CodeTracer:
             logging.debug(f"-------\nFunction call: {line_key}")
             logging.debug(f"new call stack: {self.call_stack}")
 
-            # add the line to the tree
-            self.tree.update_line_event(
-                file_name=file_name,
-                function_name=func_name,
-                line_no=line_no,
-                hits=1,
-                time_ms=0,
-                source=source,
-                parent_key=caller_key
-            )
 
 
             
