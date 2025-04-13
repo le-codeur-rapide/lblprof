@@ -65,12 +65,14 @@ def main():
     # function_using_json()
 
     # function_that_imports()
+def main2():
+    time.sleep(1)  # Simulate some delay
 
 
 set_custom_trace()
 
 main()
-# fib(3)
+main2()
 stop_custom_trace()
 
 
