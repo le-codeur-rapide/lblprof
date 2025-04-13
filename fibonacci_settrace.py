@@ -59,7 +59,7 @@ def function_that_imports():
     from other_module import some_function
     time.sleep(1)  # Simulate some delay
 def main():
-    # fib(2)
+    fib(2)
     time.sleep(1)  # Simulate some delay
     # function_2_second()
     # other_function()

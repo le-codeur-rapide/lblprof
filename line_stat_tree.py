@@ -148,6 +148,8 @@ class LineStatsTree:
         
         # If this is a root line, add it to root_lines
         if line_stats.parent_key is None:
+            logging.debug(f"Adding root line: {line_stats.key}")
+            logging.debug(f"line stats: {line_stats}")
             self.root_lines.append(line_stats.key)
         else:
             # If this line has a parent, add it as a child of the parent
@@ -155,28 +157,8 @@ class LineStatsTree:
                 self.lines[line_stats.parent_key].child_keys.append(line_stats.key)
 
         self._update_parent_times(line_stats.parent_key, line_stats.time)
-        
-        
         return line_stats
     
-    def get_line(self, line_key: Tuple[str, str, int]) -> Optional[LineStats]:
-        """Get a LineStats object by its key.
-        
-        Args:
-            line_key: Tuple[str, str, int] - Key of the line to get
-            
-        Returns:
-            Optional[LineStats] - The LineStats object or None if not found
-        """
-        return self.lines.get(line_key)
-    
-    def get_all_lines(self) -> List[LineStats]:
-        """Get all LineStats objects in the tree.
-        
-        Returns:
-            List[LineStats] - All LineStats objects
-        """
-        return list(self.lines.values())
     
     def get_root_lines(self) -> List[LineStats]:
         """Get all root LineStats objects (with no parents).
@@ -186,42 +168,6 @@ class LineStatsTree:
         """
         return [self.lines[key] for key in self.root_lines if key in self.lines]
     
-    def get_line_children(self, line_key: Tuple[str, str, int]) -> List[LineStats]:
-        """Get all child LineStats objects for a specific line.
-        
-        Args:
-            line_key: Tuple[str, str, int] - Key of the parent line
-            
-        Returns:
-            List[LineStats] - All child LineStats objects
-        """
-        if line_key not in self.lines:
-            return []
-        
-        return [self.lines[child_key] for child_key in self.lines[line_key].child_keys
-                if child_key in self.lines]
-    
-    def recalculate_child_times(self) -> None:
-        """Recalculate child_time for all lines in the tree.
-        
-        This ensures that the child_time property is accurate for reporting.
-        """
-        # First pass: calculate child_time for each line
-        for line_key, line in self.lines.items():
-            child_time = sum(self.lines[child_key].time 
-                          for child_key in line.child_keys 
-                          if child_key in self.lines)
-            line.child_time = child_time
-        
-        # Second pass: ensure time >= child_time for each line
-        for line in self.lines.values():
-            if line.time < line.child_time:
-                line.time = line.child_time
-        
-        # Update total time
-        self.total_time_ms = sum(line.self_time for line in self.lines.values())
-
-        
 
     def update_line_event(self, file_name: str, function_name: str, line_no: int, 
                      hits: int, time_ms: float, source: str, 
@@ -245,18 +191,17 @@ class LineStatsTree:
         
         # Cache the source code
         self.source_cache[line_key] = source
-        if parent_key:
-            if parent_key not in self.lines:
-                # If parent doesn't exist, create it
-                self.create_line(
-                    file_name=parent_key[0],
-                    function_name=parent_key[1],
-                    line_no=parent_key[2],
-                    hits=0,
-                    time_ms=0,
-                    source="empo code",
-                    parent_key=None
-                )
+        if parent_key not in self.lines:
+            # If parent doesn't exist, create it
+            self.create_line(
+                file_name=parent_key[0],
+                function_name=parent_key[1],
+                line_no=parent_key[2],
+                hits=0,
+                time_ms=0,
+                source="empo code",
+                parent_key=None
+            )
             
         if line_key in self.lines:
             # Update existing line stats
