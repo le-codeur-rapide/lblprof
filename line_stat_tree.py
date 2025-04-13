@@ -236,7 +236,7 @@ class LineStatsTree:
             
 
     def display_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, 
-                max_depth: int = 10, is_last: bool = True, prefix: str = "") -> None:
+                    max_depth: int = 10, is_last: bool = True, prefix: str = "") -> None:
         """Display a visual tree showing parent-child relationships between lines.
         
         Args:
@@ -269,9 +269,9 @@ class LineStatsTree:
             # Truncate source code
             truncated_source = line.source[:60] + "..." if len(line.source) > 60 else line.source
             
-            # Display current line with time info and source on the same line
+            # Display current line with time info, hits count and source on the same line
             branch = branch_last if is_last else branch_mid
-            print(f"{prefix}{branch}{line_id} [self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms] - {truncated_source}")
+            print(f"{prefix}{branch}{line_id} [hits:{line.hits} self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms] - {truncated_source}")
             
             # Get all child lines
             child_lines = [self.lines[child_key] for child_key in line.child_keys 
@@ -312,8 +312,8 @@ class LineStatsTree:
                 print("No root lines found in stats")
                 return
                 
-            print("\n\nLINE TRACE TREE (SELF TIME / TOTAL TIME):")
-            print("==========================================")
+            print("\n\nLINE TRACE TREE (HITS / SELF TIME / TOTAL TIME):")
+            print("=================================================")
             
             # Sort roots by total time (descending)
             root_lines.sort(key=lambda x: x.total_time, reverse=True)
@@ -329,8 +329,8 @@ class LineStatsTree:
                 # Truncate source code
                 truncated_source = root.source[:60] + "..." if len(root.source) > 60 else root.source
                 
-                # Display root line
-                print(f"{branch}{line_id} [self:{root.self_time:.2f}ms total:{root.total_time:.2f}ms] - {truncated_source}")
+                # Display root line with hits count
+                print(f"{branch}{line_id} [hits:{root.hits} self:{root.self_time:.2f}ms total:{root.total_time:.2f}ms] - {truncated_source}")
                 
                 # Get all child lines
                 child_lines = [self.lines[child_key] for child_key in root.child_keys 
