@@ -307,13 +307,14 @@ class CodeTracer:
         print('-' * 78)
         print(f"| {'DISPLAYED TOTAL':40} | {displayed_total:>10.3f} |            | 100.0% |")
         print("============================================================")
-    
+        
+    # Update the call tree method to order lines by line number within the same file
     def print_call_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, max_depth: int = 10) -> None:
         """Print a call tree starting from a specific line or from all roots.
         
         Args:
             root_key: Optional[Tuple[str, str, int]] - If provided, start from this line.
-                                                     If None, start from all root lines.
+                                                    If None, start from all root lines.
             depth: int - Current recursion depth (for internal use).
             max_depth: int - Maximum depth to display.
         """
@@ -334,9 +335,32 @@ class CodeTracer:
             
             print(f"{indent}{line_id} [self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms] - {line.source}")
             
-            for child_key in line.child_keys:
-                if child_key in self.line_stats:
-                    self.print_call_tree(child_key, depth + 1, max_depth)
+            # Get all child lines
+            child_lines = [self.line_stats[child_key] for child_key in line.child_keys 
+                        if child_key in self.line_stats]
+            
+            # Group children by file
+            children_by_file = {}
+            for child in child_lines:
+                if child.file_name not in children_by_file:
+                    children_by_file[child.file_name] = []
+                children_by_file[child.file_name].append(child)
+            
+            # Sort each file's lines by line number
+            for file_name in children_by_file:
+                children_by_file[file_name].sort(key=lambda x: x.line_no)
+            
+            # Sort files by total time (descending)
+            files_by_time = sorted(
+                children_by_file.keys(),
+                key=lambda f: sum(c.total_time for c in children_by_file[f]),
+                reverse=True
+            )
+            
+            # Print child lines in order
+            for file_name in files_by_time:
+                for child in children_by_file[file_name]:
+                    self.print_call_tree(child.key, depth + 1, max_depth)
         else:
             # Print all root trees
             root_lines = self.get_root_lines()
