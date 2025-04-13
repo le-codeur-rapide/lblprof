@@ -178,9 +178,189 @@ class LineStatsTree:
                 return ""
     
 
+import logging
+import os
+from typing import List, Dict, Tuple, Optional
+
+from pydantic import BaseModel, Field, ConfigDict
+
+
+class LineStats(BaseModel):
+    """Statistics for a single line of code."""
+    model_config = ConfigDict(validate_assignment=True)
+    
+    file_name: str = Field(..., min_length=1, description="File containing this line")
+    function_name: str = Field(..., min_length=1, description="Function containing this line")
+    line_no: int = Field(..., ge=1, description="Line number in the source file")
+    hits: int = Field(..., ge=0, description="Number of times this line was executed")
+    time: float = Field(..., ge=0, description="Time spent on this line in milliseconds")
+    avg_time: float = Field(..., ge=0, description="Average time per hit in milliseconds")
+    source: str = Field(..., min_length=1, description="Source code for this line")
+    child_time: float = Field(default=0.0, ge=0, description="Time spent in called lines")
+    
+    # Parent line that called this function (optional for root/top-level lines)
+    parent_key: Optional[Tuple[str, str, int]] = None
+    
+    # Children lines called by this line (populated during analysis)
+    child_keys: List[Tuple[str, str, int]] = Field(default_factory=list)
+    
+    @property
+    def key(self) -> Tuple[str, str, int]:
+        """Get the unique key for this line."""
+        return (self.file_name, self.function_name, self.line_no)
+    
+    @property
+    def self_time(self) -> float:
+        """Get time spent on this line excluding child calls."""
+        return max(0.0, self.time - self.child_time)
+    
+    @property
+    def total_time(self) -> float:
+        """Get total time including child calls."""
+        return self.time
+
+
+class LineStatsTree:
+    """A tree structure to manage LineStats objects with automatic parent-child time propagation."""
+    
+    def __init__(self):
+        # Store all lines by their key
+        self.lines: Dict[Tuple[str, str, int], LineStats] = {}
+        
+        # Track root nodes (entry points with no parents)
+        self.root_lines: List[Tuple[str, str, int]] = []
+        
+        # Cache for source code lines
+        self.source_cache: Dict[Tuple[str, str, int], str] = {}
+        
+        # Total time for all tracked lines
+        self.total_time_ms: float = 0
+    
+    
+    def _update_parent_times(self, parent_key: Tuple[str, str, int], time_delta: float) -> None:
+        """Recursively update the time of a parent line and all its ancestors.
+        
+        Args:
+            parent_key: Tuple[str, str, int] - Key of the parent line
+            time_delta: float - Time difference to add in milliseconds
+        """
+        if parent_key not in self.lines:
+            return
+        
+        # Update parent time
+        parent = self.lines[parent_key]
+        parent.time += time_delta
+        
+        # Calculate new child_time
+        child_time = sum(self.lines[child_key].time 
+                        for child_key in parent.child_keys 
+                        if child_key in self.lines)
+        parent.child_time = child_time
+        
+        # Continue up the tree
+        if parent.parent_key:
+            self._update_parent_times(parent.parent_key, time_delta)
+    
+    def update_line_time(self, line_key: Tuple[str, str, int], 
+                        additional_time: float, additional_hits: int = 0) -> None:
+        """Update the time and hit count for a specific line.
+        
+        Args:
+            line_key: Tuple[str, str, int] - Key of the line to update
+            additional_time: float - Additional time to add in milliseconds
+            additional_hits: int - Additional hit count to add
+        """
+        if line_key not in self.lines:
+            # Line doesn't exist, can't update
+            return
+        
+        # Update the line
+        line = self.lines[line_key]
+        line.time += additional_time
+        line.hits += additional_hits
+        if line.hits > 0:
+            line.avg_time = line.time / line.hits
+        
+        # Update parent times
+        if line.parent_key:
+            self._update_parent_times(line.parent_key, additional_time)
+        
+        # Update total time
+        self.total_time_ms += additional_time
+    
+    def create_line(self, file_name: str, function_name: str, line_no: int,
+                   hits: int, time_ms: float, source: str,
+                   parent_key: Optional[Tuple[str, str, int]] = None) -> LineStats:
+        """Create a new LineStats object and add it to the tree.
+        
+        Args:
+            file_name: str - File containing the line
+            function_name: str - Function containing the line
+            line_no: int - Line number
+            hits: int - Number of times line was executed
+            time_ms: float - Time spent on this line in milliseconds
+            source: str - Source code for this line
+            parent_key: Optional[Tuple[str, str, int]] - Key of the parent line
+            
+        Returns:
+            LineStats - The created LineStats object
+        """
+        line_key = (file_name, function_name, line_no)
+        
+        # Cache the source code
+        self.source_cache[line_key] = source
+        
+        # Create the LineStats object
+        line_stats = LineStats(
+            file_name=file_name,
+            function_name=function_name,
+            line_no=line_no,
+            hits=hits,
+            time=time_ms,
+            avg_time=time_ms / hits if hits else 0,
+            source=source,
+            parent_key=parent_key,
+            child_keys=[]
+        )
+        
+        # Add the line to the dictionary
+        self.lines[line_stats.key] = line_stats
+        
+        # If this is a root line, add it to root_lines
+        if line_stats.parent_key is None:
+            logging.debug(f"Adding root line: {line_stats.key}")
+            logging.debug(f"line stats: {line_stats}")
+            self.root_lines.append(line_stats.key)
+        else:
+            # If this line has a parent, add it as a child of the parent
+            if line_stats.parent_key in self.lines:
+                self.lines[line_stats.parent_key].child_keys.append(line_stats.key)
+
+        self._update_parent_times(line_stats.parent_key, line_stats.time)
+        return line_stats
+    
+    
+    def get_root_lines(self) -> List[LineStats]:
+        """Get all root LineStats objects (with no parents).
+        
+        Returns:
+            List[LineStats] - All root LineStats objects
+        """
+        return [self.lines[key] for key in self.root_lines if key in self.lines]
+
+    def _get_source_code(self, file_name: str, line_no: int) -> str:
+        """Get the source code for a specific line in a file."""
+        with open(file_name, 'r') as f:
+            lines = f.readlines()
+            if line_no - 1 < len(lines):
+                return lines[line_no - 1].strip()
+            else:
+                return ""
+    
+
     def update_line_event(self, file_name: str, function_name: str, line_no: int, 
-                     hits: int, time_ms: float, source: str, 
-                     parent_key: Optional[Tuple[str, str, int]]) -> None:
+                 hits: int, time_ms: float, source: str, 
+                 parent_key: Optional[Tuple[str, str, int]]) -> None:
         """Update the tree with a line execution event.
         
         Args:
@@ -196,9 +376,16 @@ class LineStatsTree:
                         f"hits={hits}, time_ms={time_ms}, source={source}")
         logging.debug(f"Parent key: {parent_key}")
 
+        # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
+        
+        # Extended line key that includes parent information to differentiate the same line called from different places
+        extended_key = (file_name, function_name, line_no, parent_key)
+        
+        # Cache the source code
         self.source_cache[line_key] = source
 
+        # Check if the parent exists and create it if needed
         if parent_key not in self.lines:
             logging.debug(f"Parent key {parent_key} not found in lines, creating it.")
             # If parent doesn't exist, create it
@@ -212,27 +399,31 @@ class LineStatsTree:
                     file_name=parent_key[0],
                     line_no=parent_key[2]
                 ),
-                parent_key=None
+                parent_key=None  # No parent for this parent (might need to be adjusted)
             )
-            
-        if line_key in self.lines:
-            # Update existing line stats
-            self.update_line_time(line_key, time_ms, hits)
-            self.lines[line_key].parent_key = parent_key
-            
-            self.lines[parent_key].child_keys.append(line_key)
+        
+        # Find the line by its extended key (same line but with specific parent)
+        for existing_key, existing_line in self.lines.items():
+            if existing_key[:3] == line_key and existing_line.parent_key == parent_key:
+                # We found the same line with same parent - update it
+                self.update_line_time(existing_key, time_ms, hits)
+                return
                 
-        else:
-            # Create new line stats
-            self.create_line(
-                file_name=file_name,
-                function_name=function_name,
-                line_no=line_no,
-                hits=hits,
-                time_ms=time_ms,
-                source=source,
-                parent_key=parent_key
-            )
+        # If we get here, we didn't find the line with this specific parent - create it
+        new_line = self.create_line(
+            file_name=file_name,
+            function_name=function_name,
+            line_no=line_no,
+            hits=hits,
+            time_ms=time_ms,
+            source=source,
+            parent_key=parent_key
+        )
+        
+        # Make sure the parent-child relationship is established
+        if parent_key and parent_key in self.lines:
+            if line_key not in self.lines[parent_key].child_keys:
+                self.lines[parent_key].child_keys.append(line_key)
             
 
     def display_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, 
