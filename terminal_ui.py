@@ -24,8 +24,6 @@ class TerminalTreeUI:
         
         # UI state
         self.collapsed_nodes = set()  # Keys of collapsed nodes
-        self.sort_by = "total_time"   # Default sort
-        self.reverse_sort = True      # Default descending
         self.current_pos = 0          # Current selected position
         self.scroll_offset = 0        # Vertical scroll offset
         
@@ -74,7 +72,7 @@ class TerminalTreeUI:
                 self._add_children_to_display(display_data, child, depth + 1)
     
     def _get_sorted_children(self, parent):
-        """Get sorted children of a parent node based on current sort settings."""
+        """Get children of a parent node."""
         # First get all valid children
         children = self.tree_data_provider(parent.key)
         
@@ -89,29 +87,9 @@ class TerminalTreeUI:
         for file_name in children_by_file:
             children_by_file[file_name].sort(key=lambda x: x.line_no)
         
-        # Sort files by the current sort attribute
-        if self.sort_by == "hits":
-            files_by_attr = sorted(
-                children_by_file.keys(),
-                key=lambda f: sum(c.hits for c in children_by_file[f]),
-                reverse=self.reverse_sort
-            )
-        elif self.sort_by == "self_time":
-            files_by_attr = sorted(
-                children_by_file.keys(),
-                key=lambda f: sum(c.self_time for c in children_by_file[f]),
-                reverse=self.reverse_sort
-            )
-        else:  # default to total_time
-            files_by_attr = sorted(
-                children_by_file.keys(),
-                key=lambda f: sum(c.total_time for c in children_by_file[f]),
-                reverse=self.reverse_sort
-            )
-        
         # Flatten all children
         all_children = []
-        for file_name in files_by_attr:
+        for file_name in children_by_file:
             all_children.extend(children_by_file[file_name])
         
         return all_children
@@ -213,23 +191,6 @@ class TerminalTreeUI:
         
         return False
     
-    def _cycle_sort_option(self):
-        """Cycle through available sort options."""
-        sort_options = [
-            ("hits", False),       # hits (ascending)
-            ("hits", True),        # hits (descending)
-            ("self_time", False),  # self time (ascending)
-            ("self_time", True),   # self time (descending)
-            ("total_time", False), # total time (ascending)
-            ("total_time", True),  # total time (descending)
-        ]
-        
-        # Find current sort option and move to next
-        current_idx = next((i for i, (s, r) in enumerate(sort_options) 
-                          if s == self.sort_by and r == self.reverse_sort), 0)
-        next_idx = (current_idx + 1) % len(sort_options)
-        self.sort_by, self.reverse_sort = sort_options[next_idx]
-    
     def _toggle_collapse(self, display_data, current_node):
         """Toggle collapse state of the current node."""
         node_key = current_node['line'].key
@@ -256,7 +217,7 @@ class TerminalTreeUI:
         root_nodes = self.tree_data_provider()
         
         # Header and help text
-        help_text = "[↑/↓]: Navigate | [Enter]: Expand/Collapse | [Space]: Sort | [q]: Quit"
+        help_text = "[↑/↓]: Navigate | [Enter]: Expand/Collapse | [q]: Quit"
         
         # Main UI loop
         running = True
@@ -271,8 +232,7 @@ class TerminalTreeUI:
             display_data = self._generate_display_data(root_nodes)
             
             # Display header
-            sort_direction = "↓" if self.reverse_sort else "↑"
-            header = f"LINE TRACE TREE (Sort: {self.sort_by} {sort_direction})"
+            header = "LINE TRACE TREE"
             stdscr.addstr(0, 0, header, curses.color_pair(3) | curses.A_BOLD)
             stdscr.addstr(1, 0, "=" * len(header), curses.color_pair(3))
             
@@ -312,13 +272,6 @@ class TerminalTreeUI:
                     current_node = display_data[self.current_pos]
                     if current_node['has_children']:
                         self._toggle_collapse(display_data, current_node)
-            
-            elif key == ord(' '):  # Space key
-                # Cycle sort options
-                self._cycle_sort_option()
-                # Reset position
-                self.current_pos = 0
-                self.scroll_offset = 0
             
             elif key == ord('q'):  # Quit
                 running = False
