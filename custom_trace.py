@@ -141,7 +141,7 @@ class CodeTracer:
     
     def is_installed_module(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code."""
-        return any(path in filename for path in self.site_packages_paths)
+        return any(path in filename for path in self.site_packages_paths) or len(filename) ==   0
     
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # Set up function-level tracing
@@ -339,6 +339,8 @@ class CodeTracer:
         print('-' * 65)
         
         for func in function_summary:
+            if func.time_ms < 10:
+                continue
             func_name = func.file_name.split("/")[-1] + "::" + func.function_name
             print(f"| {func_name:40} | {func.time_ms:>10.3f} | {func.percent:>6.1f}% |")
         
@@ -358,11 +360,32 @@ class CodeTracer:
             print(f"| {line.line_no:>4} | {line.hits:>6} | {line.time:>10.3f} | " +
                   f"{line.avg_time:>10.3f} | {line.percent:>6.1f}% | {line.source}")
     
-    def print_all_line_stats(self) -> None:
-        """Print detailed line statistics for all profiled functions."""
-        for func_key in self.function_line_stats:
+    def print_all_line_stats(self, n: Optional[int] = None) -> None:
+        """Print detailed line statistics for profiled functions.
+        
+        Args:
+            n: Optional[int] - If provided, only shows the top n longest-running functions.
+                            If None, shows all functions.
+        """
+        # Get all function stats and sort by total time (descending)
+        func_stats = [(func_key, stats) for func_key, stats in self.function_line_stats.items()]
+        func_stats.sort(key=lambda x: x[1].total_time, reverse=False)
+        
+        # Limit to top n if specified
+        if n is not None:
+            func_stats = func_stats[-n:]
+        
+        # If no functions were profiled or n is 0, print a message
+        if not func_stats:
+            print("No function statistics available.")
+            return
+        
+        # Print stats for each function
+        for i, (func_key, _) in enumerate(func_stats):
             self.print_function_line_stats(func_key)
-            print()  # Add a blank line between functions
+            # Add a blank line between functions, but not after the last one
+            if i < len(func_stats) - 1:
+                print()
 
 
 # Create a singleton instance for the module
@@ -380,4 +403,4 @@ def print_summary() -> None:
     tracer.print_function_summary()
 
 def print_all_details() -> None:
-    tracer.print_all_line_stats()
+    tracer.print_all_line_stats(5)
