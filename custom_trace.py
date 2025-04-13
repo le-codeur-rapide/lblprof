@@ -1,11 +1,9 @@
-import inspect
 import logging
 logging.basicConfig(level=logging.DEBUG)
 import sys
 import time
 import os
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Any
 from line_stat_tree import LineStats, LineStatsTree
 
 
@@ -86,9 +84,6 @@ class CodeTracer:
             logging.debug(f"-------\nFunction call: {line_key}")
             logging.debug(f"new call stack: {self.call_stack}")
 
-
-
-            
         elif event == 'line':
             prev_file_name, prev_func_name, prev_line_no, prev_source, prev_parent_key = self.tempo_line_infos if self.tempo_line_infos else (None, None, None, None, None)
             parent_key = self.call_stack[-1] if self.call_stack else None
@@ -129,85 +124,6 @@ class CodeTracer:
         sys.settrace(None)
   
     
-    def get_root_lines(self) -> List[LineStats]:
-        """Get all root (entry point) lines."""
-        logging.debug(f"Root lines: {self.root_lines}")
-        logging.debug(f"Line stats: {self.line_stats}")
-        logging.debug(f"result: {[self.line_stats[key] for key in self.root_lines if key in self.line_stats]}")
-        return [self.line_stats[key] for key in self.root_lines if key in self.line_stats]
-    
-    def get_line_children(self, line_key: Tuple[str, str, int]) -> List[LineStats]:
-        """Get all child lines of a specific line."""
-        stats = self.line_stats.get(line_key)
-        if not stats:
-            return []
-        
-        return [self.line_stats[child_key] for child_key in stats.child_keys 
-                if child_key in self.line_stats]
-    
-    def print_line_summary(self, current_file: Optional[str] = None, n: Optional[int] = None) -> None:
-        """Print a summary of line execution times.
-        
-        Args:
-            current_file: Optional[str] - If provided, only shows lines from this file.
-            n: Optional[int] - If provided, only shows the top n longest-running lines.
-        """
-        if not self.line_stats:
-            print("No lines were traced.")
-            return
-        
-        # First, get all lines
-        all_lines = list(self.line_stats.values())
-        
-        # Filter by file if requested
-        if current_file:
-            current_file = os.path.abspath(current_file)
-            all_lines = [line for line in all_lines if os.path.abspath(line.file_name) == current_file]
-            
-            if not all_lines:
-                print(f"No lines traced in file: {os.path.basename(current_file)}")
-                return
-        
-        # Sort lines by self_time (descending)
-        all_lines.sort(key=lambda x: x.self_time, reverse=True)
-        
-        # Limit to top n if specified
-        if n is not None and len(all_lines) > n:
-            all_lines = all_lines[:n]
-        
-        # Calculate total time for percentage calculation
-        displayed_total = sum(line.self_time for line in all_lines)
-        
-        # Create title based on filtering
-        title = "LINE EXECUTION TIME SUMMARY"
-        if current_file:
-            title += f" FOR: {os.path.basename(current_file)}"
-        if n is not None:
-            title += f" (TOP {n})"
-        
-        # Print the summary
-        print("\n\n============================================================")
-        print(title)
-        print("============================================================")
-        print(f"| {'Line':^40} | {'Self(ms)':>10} | {'Total(ms)':>10} | {'%':>6} |")
-        print('-' * 78)
-        
-        for line in all_lines:
-            # Get just the filename without path
-            filename = os.path.basename(line.file_name)
-            line_id = f"{filename}::{line.function_name}::{line.line_no}"
-            
-            # Calculate percentage relative to displayed total
-            percent = (line.self_time / displayed_total * 100) if displayed_total > 0 else 0
-            
-            print(f"| {line_id:40} | {line.self_time:>10.3f} | {line.total_time:>10.3f} | {percent:>6.1f}% |")
-        
-        print('-' * 78)
-        print(f"| {'DISPLAYED TOTAL':40} | {displayed_total:>10.3f} |            | 100.0% |")
-        print("============================================================")
-        
-
-
 # Create a singleton instance for the module
 tracer = CodeTracer()
 
@@ -218,25 +134,4 @@ def set_custom_trace() -> None:
 def stop_custom_trace() -> None:
     """Stop tracing code execution."""
     tracer.stop_tracing()
-
-def print_summary(n: Optional[int] = None) -> None:
-    """Print a summary of the most time-consuming lines in the current file.
-    
-    Args:
-        n: Optional[int] - If provided, only shows the top n lines.
-    """
-    # Get the current file path using inspection
-    caller_frame = inspect.currentframe().f_back
-    current_file = caller_frame.f_code.co_filename if caller_frame else None
-    
-    tracer.print_line_summary(current_file=current_file, n=n)
-
-def print_all_lines(n: Optional[int] = None) -> None:
-    """Print a summary of all traced lines across all files.
-    
-    Args:
-        n: Optional[int] - If provided, only shows the top n lines.
-    """
-    tracer.print_line_summary(n=n)
-
 
