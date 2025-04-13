@@ -14,21 +14,11 @@ class CodeTracer:
         # Data structures to store trace information - everything is lines now
         self.line_source: Dict[Tuple[str, str, int], str] = {}
         
-        # Track parent-child relationships between lines
-        self.line_parents: Dict[Tuple[str, str, int], Optional[Tuple[str, str, int]]] = {}
-        self.line_children: Dict[Tuple[str, str, int], Set[Tuple[str, str, int]]] = defaultdict(set)
-        
-        # Track function entry points - we need this to determine caller-callee relationships
-        self.function_entries: Dict[Tuple[str, str], Tuple[str, str, int]] = {}
-        
         # Call stack to handle nested calls
         self.call_stack: List[Tuple[str, str, int]] = []
         
         # Current line tracking
         self.last_time: float = time.time()
-        
-        # Statistics for report generation
-        self.total_time_ms: float = 0
         
         # Get user's home directory and site-packages paths to identify installed modules
         self.home_dir = os.path.expanduser('~')
@@ -216,120 +206,6 @@ class CodeTracer:
         print(f"| {'DISPLAYED TOTAL':40} | {displayed_total:>10.3f} |            | 100.0% |")
         print("============================================================")
         
-    # Update the call tree method to order lines by line number within the same file
-    def print_call_tree(self, root_key: Optional[Tuple[str, str, int]] = None, depth: int = 0, max_depth: int = 10) -> None:
-        """Print a call tree starting from a specific line or from all roots.
-        
-        Args:
-            root_key: Optional[Tuple[str, str, int]] - If provided, start from this line.
-                                                    If None, start from all root lines.
-            depth: int - Current recursion depth (for internal use).
-            max_depth: int - Maximum depth to display.
-        """
-        if depth > max_depth:
-            return  # Prevent infinite recursion
-            
-        indent = "    " * depth
-        
-        if root_key:
-            # Print a specific subtree
-            if root_key not in self.line_stats:
-                print(f"{indent}Line {root_key} not found in stats")
-                return
-                
-            line = self.line_stats[root_key]
-            filename = os.path.basename(line.file_name)
-            line_id = f"{filename}::{line.function_name}::{line.line_no}"
-            
-            print(f"{indent}{line_id} [self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms] - {line.source}")
-            
-            # Get all child lines
-            child_lines = [self.line_stats[child_key] for child_key in line.child_keys 
-                        if child_key in self.line_stats]
-            
-            # Group children by file
-            children_by_file = {}
-            for child in child_lines:
-                if child.file_name not in children_by_file:
-                    children_by_file[child.file_name] = []
-                children_by_file[child.file_name].append(child)
-            
-            # Sort each file's lines by line number
-            for file_name in children_by_file:
-                children_by_file[file_name].sort(key=lambda x: x.line_no)
-            
-            # Sort files by total time (descending)
-            files_by_time = sorted(
-                children_by_file.keys(),
-                key=lambda f: sum(c.total_time for c in children_by_file[f]),
-                reverse=True
-            )
-            
-            # Print child lines in order
-            for file_name in files_by_time:
-                for child in children_by_file[file_name]:
-                    self.print_call_tree(child.key, depth + 1, max_depth)
-        else:
-            # Print all root trees
-            root_lines = self.get_root_lines()
-            if not root_lines:
-                print("No root lines found in stats")
-                return
-                
-            print("\n\nCALL TREE (SELF TIME / TOTAL TIME):")
-            print("====================================")
-            
-            # Sort roots by total time
-            root_lines.sort(key=lambda x: x.total_time, reverse=False)
-            logging.debug(f"Root lines: {root_lines}")
-            for root in root_lines:
-                self.print_call_tree(root.key, 0, max_depth)
-                print()  # Empty line between roots
-    
-    def print_line_details(self, line_key: Tuple[str, str, int]) -> None:
-        """Print detailed statistics for a specific line and its children."""
-        if line_key not in self.line_stats:
-            print(f"Line {line_key} not found in stats")
-            return
-        
-        line = self.line_stats[line_key]
-        children = self.get_line_children(line_key)
-        children.sort(key=lambda x: x.total_time, reverse=True)
-        
-        filename = os.path.basename(line.file_name)
-        line_id = f"{filename}::{line.function_name}::{line.line_no}"
-        
-        print("\n\n============================================================")
-        print(f"LINE DETAILS: {line_id}")
-        print("============================================================")
-        print(f"Source: {line.source}")
-        print(f"Hits: {line.hits}")
-        print(f"Self time: {line.self_time:.3f}ms")
-        print(f"Child time: {line.child_time:.3f}ms")
-        print(f"Total time: {line.total_time:.3f}ms")
-        
-        if not children:
-            print("\nNo child calls from this line")
-            return
-            
-        print("\nChild calls from this line:")
-        print(f"| {'Child Line':^40} | {'Self(ms)':>10} | {'Total(ms)':>10} | {'%':>6} |")
-        print('-' * 78)
-        
-        total_child_time = sum(child.total_time for child in children)
-        
-        for child in children:
-            child_filename = os.path.basename(child.file_name)
-            child_id = f"{child_filename}::{child.function_name}::{child.line_no}"
-            
-            # Calculate percentage relative to total child time
-            percent = (child.total_time / total_child_time * 100) if total_child_time > 0 else 0
-            
-            print(f"| {child_id:40} | {child.self_time:>10.3f} | {child.total_time:>10.3f} | {percent:>6.1f}% |")
-        
-        print('-' * 78)
-        print(f"| {'TOTAL CHILD TIME':40} | {' ':10} | {total_child_time:>10.3f} | 100.0% |")
-        print("============================================================")
 
 
 # Create a singleton instance for the module
