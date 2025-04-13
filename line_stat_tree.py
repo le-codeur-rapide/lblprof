@@ -56,9 +56,6 @@ class LineStatsTree:
         # Track root nodes (entry points with no parents)
         self.root_lines: List[Tuple[str, str, int]] = []
         
-        # Cache for source code lines
-        self.source_cache: Dict[Tuple[str, str, int], str] = {}
-        
         # Total time for all tracked lines
         self.total_time_ms: float = 0
     
@@ -116,7 +113,7 @@ class LineStatsTree:
     
     def create_line(self, file_name: str, function_name: str, line_no: int,
                    hits: int, time_ms: float, source: str,
-                   parent_key: Optional[Tuple[str, str, int]] = None) -> LineStats:
+                   parent_key: Optional[Tuple[str, str, int]] = None) -> None:
         """Create a new LineStats object and add it to the tree.
         
         Args:
@@ -131,11 +128,6 @@ class LineStatsTree:
         Returns:
             LineStats - The created LineStats object
         """
-        line_key = (file_name, function_name, line_no)
-        
-        # Cache the source code
-        self.source_cache[line_key] = source
-        
         # Create the LineStats object
         line_stats = LineStats(
             file_name=file_name,
@@ -154,19 +146,20 @@ class LineStatsTree:
         
         # If this is a root line, add it to root_lines
         if line_stats.parent_key is None:
-            logging.debug(f"Adding root line: {line_stats.key}")
-            logging.debug(f"line stats: {line_stats}")
             self.root_lines.append(line_stats.key)
+
+            # If it is root, it has no ancestor to update, so we can return
+            return
         else:
             # If this line has a parent, add it as a child of the parent
-            if line_stats.parent_key in self.lines:
-                self.lines[line_stats.parent_key].child_keys.append(line_stats.key)
+            self.lines[line_stats.parent_key].child_keys.append(line_stats.key)
 
+        # Update the time of ancestors
         self._update_parent_times(line_stats.parent_key, line_stats.time)
-        return line_stats
+        return 
     
     
-    def get_root_lines(self) -> List[LineStats]:
+    def _get_root_lines(self) -> List[LineStats]:
         """Get all root LineStats objects (with no parents).
         
         Returns:
@@ -176,6 +169,10 @@ class LineStatsTree:
 
     def _get_source_code(self, file_name: str, line_no: int) -> str:
         """Get the source code for a specific line in a file."""
+        # At this point the source lines should be given by the tracer
+        # because it has the ability to kind of cache it. We ust this 
+        # method only in edge cases where we need don't have it (ex root lines)
+        # Idealy we don't need this method at all.
         with open(file_name, 'r') as f:
             lines = f.readlines()
             if line_no - 1 < len(lines):
@@ -186,7 +183,7 @@ class LineStatsTree:
 
     def update_line_event(self, file_name: str, function_name: str, line_no: int, 
                  hits: int, time_ms: float, source: str, 
-                 parent_key: Optional[Tuple[str, str, int]]) -> None:
+                 parent_key: Tuple[str, str, int]) -> None:
         """Update the tree with a line execution event.
         
         Args:
@@ -198,15 +195,8 @@ class LineStatsTree:
             source: Source code of the line
             parent_key: Key of the parent line in the call stack, or None if this is a root
         """
-        logging.debug(f"Updating line event: {file_name}::{function_name}::{line_no} "
-                        f"hits={hits}, time_ms={time_ms}, source={source}")
-        logging.debug(f"Parent key: {parent_key}")
-
         # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
-        
-        # Cache the source code
-        self.source_cache[line_key] = source
 
         # Check if the parent exists and create it if needed
         if parent_key not in self.lines:
@@ -321,7 +311,7 @@ class LineStatsTree:
                 self.display_tree(child.key, depth + 1, max_depth, is_last_child, next_prefix)
         else:
             # Print all root trees
-            root_lines = self.get_root_lines()
+            root_lines = self._get_root_lines()
             if not root_lines:
                 print("No root lines found in stats")
                 return

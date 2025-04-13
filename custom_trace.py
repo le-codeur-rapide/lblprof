@@ -80,7 +80,7 @@ class CodeTracer:
 
         elif event == 'line':
             # A line of code is executed
-            parent_key = self.call_stack[-1] if self.call_stack else None
+            parent_key = self.call_stack[-1]
             if not self.tempo_line_infos:
                 # This is the first line executed, there is no new duration to store in the tree, 
                 # we just store the current line info
@@ -104,12 +104,14 @@ class CodeTracer:
             self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
             
         elif event == 'return':
-            # Update call stack
+            # A function is returning
+            # We just need to pop the last line from the call stack so newt
+            # lines will have the correct parent 
             if self.call_stack:
                 self.call_stack.pop()
             
-            logging.debug(f"-------\nFunction return: {line_key}")
-            logging.debug(f"new call stack: {self.call_stack}")
+        # We need to return the trace function to continue tracing
+        # https://docs.python.org/3.8/library/sys.html#sys.settrace:~:text=The%20local%20trace%20function%20should
         return self.trace_function
     
     def start_tracing(self) -> None:

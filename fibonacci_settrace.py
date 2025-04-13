@@ -74,6 +74,7 @@ set_custom_trace()
 
 main()
 # main2()
+time.sleep(1)  # Simulate some delay
 fib(2)
 stop_custom_trace()
 
