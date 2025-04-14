@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from terminal_ui import TerminalTreeUI
+from lbl_profiler.terminal_ui import TerminalTreeUI
 
 
 class LineStats(BaseModel):
