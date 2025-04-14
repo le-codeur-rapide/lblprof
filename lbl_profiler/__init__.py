@@ -1,4 +1,4 @@
-from .custom_trace import CodeTracer
+from .tracer import CodeTracer
 
 # Create a singleton instance for the module
 tracer = CodeTracer()

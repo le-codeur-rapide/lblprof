@@ -1,22 +1,24 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
 import sys
 import time
 import os
 from typing import Dict, List, Tuple, Any
-from .line_stat_tree import LineStats, LineStatsTree
+from .line_stats_tree import LineStatsTree
 
+logging.basicConfig(level=logging.DEBUG)
 
 class CodeTracer:
     def __init__(self):
         # We use a dictionary to store the source code of lines
         self.line_source: Dict[Tuple[str, str, int], str] = {}
-        
         # Call stack to handle nested calls
         self.call_stack: List[Tuple[str, str, int]] = []
-        
         # Current line tracking
         self.last_time: float = time.time()
+        # We use this to store the tree of line stats
+        self.tree = LineStatsTree()
+        # Use to store the line info until next line to have the time of the line
+        self.tempo_line_infos = None 
         
         # We use this to not try to trace modules not written by the user
         self.home_dir = os.path.expanduser('~')
@@ -30,11 +32,6 @@ class CodeTracer:
             '<'                                        # built-in modules
         ]
         
-        # We use this to store the tree of line stats
-        self.tree = LineStatsTree()
-
-        # Use to store the line info until next line to have the time of the line
-        self.tempo_line_infos = None 
 
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # main function that will replace the default trace function 

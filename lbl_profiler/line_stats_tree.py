@@ -2,50 +2,9 @@ import logging
 import os
 from typing import List, Dict, Tuple, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
 
-from lbl_profiler.terminal_ui import TerminalTreeUI
-
-
-class LineStats(BaseModel):
-    """Statistics for a single line of code."""
-    model_config = ConfigDict(validate_assignment=True)
-    
-    file_name: str = Field(..., min_length=1, description="File containing this line")
-    function_name: str = Field(..., min_length=1, description="Function containing this line")
-    line_no: int = Field(..., ge=1, description="Line number in the source file")
-    hits: int = Field(..., ge=0, description="Number of times this line was executed")
-    time: float = Field(..., ge=0, description="Time spent on this line in milliseconds")
-    avg_time: float = Field(..., ge=0, description="Average time per hit in milliseconds")
-    source: str = Field(..., min_length=1, description="Source code for this line")
-    child_time: float = Field(default=0.0, ge=0, description="Time spent in called lines")
-    
-    # Parent line that called this function
-    # If None then it 
-    parent_key: Optional[Tuple[str, str, int]] = None
-    
-    # Children lines called by this line (populated during analysis)
-    child_keys: List[Tuple[str, str, int]] = Field(default_factory=list)
-    
-    @property
-    def key(self) -> Tuple[str, str, int]:
-        """Get the unique key for this line."""
-        return (self.file_name, self.function_name, self.line_no)
-    
-    @property
-    def extended_key(self) -> Tuple:
-        """Get an extended unique key that includes parent information."""
-        return (self.file_name, self.function_name, self.line_no, self.parent_key)
-    
-    @property
-    def self_time(self) -> float:
-        """Get time spent on this line excluding child calls."""
-        return max(0.0, self.time - self.child_time)
-    
-    @property
-    def total_time(self) -> float:
-        """Get total time including child calls."""
-        return self.time
+from lbl_profiler.curses_ui import TerminalTreeUI
+from lbl_profiler.objects import LineStats
 
 
 class LineStatsTree:
@@ -54,10 +13,8 @@ class LineStatsTree:
     def __init__(self):
         # Store all lines by their key
         self.lines: Dict[Tuple[str, str, int], LineStats] = {}
-        
         # Track root nodes (entry points with no parents)
         self.root_lines: List[Tuple[str, str, int]] = []
-        
         # Total time for all tracked lines
         self.total_time_ms: float = 0
     
@@ -177,12 +134,15 @@ class LineStatsTree:
         # because it has the ability to kind of cache it. We ust this 
         # method only in edge cases where we need don't have it (ex root lines)
         # Idealy we don't need this method at all.
-        with open(file_name, 'r') as f:
-            lines = f.readlines()
-            if line_no - 1 < len(lines):
-                return lines[line_no - 1].strip()
-            else:
-                return ""
+        try:
+            with open(file_name, 'r') as f:
+                lines = f.readlines()
+                if line_no - 1 < len(lines):
+                    return lines[line_no - 1].strip()
+                else:
+                    return ""
+        except Exception as e:
+            return f"Error getting source code of line {line_no} in file {file_name}: {e}"
     
 
     def update_line_event(self, file_name: str, function_name: str, line_no: int, 
@@ -375,6 +335,7 @@ class LineStatsTree:
                 # Add empty line between roots
                 if not is_last_root:
                     print()
+                    
     def show_interactive(self):
         """Display the tree in an interactive terminal interface."""
         
