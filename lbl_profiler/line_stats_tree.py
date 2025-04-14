@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Optional
 
 
 from lbl_profiler.curses_ui import TerminalTreeUI
-from lbl_profiler.objects import LineStats
+from lbl_profiler.line_stat_object import LineStats
 
 
 class LineStatsTree:
