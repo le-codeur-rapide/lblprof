@@ -1,4 +1,3 @@
-import inspect
 import logging
 import sys
 import time
@@ -7,25 +6,6 @@ from typing import Dict, List, Tuple, Any
 from .line_stats_tree import LineStatsTree
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def is_user_code(frame):
-    module = inspect.getmodule(frame)
-    if module is None:
-        return False
-
-    # Get the full path of the module
-    filename = inspect.getfile(module)
-
-    # Check if it's within the project directory
-    project_dir = os.getcwd()  # Assumes current working directory is project root
-
-    # Check if file is in project directory but not in site-packages
-    return (
-        project_dir in filename
-        and "site-packages" not in filename
-        and "dist-packages" not in filename
-    )
 
 
 class CodeTracer:
@@ -63,7 +43,7 @@ class CodeTracer:
         line_no = frame.f_lineno
 
         # Skip installed modules
-        if self._is_installed_module(file_name) or not is_user_code(frame):
+        if self._is_installed_module(file_name):
             return None
 
         # Get time and create key

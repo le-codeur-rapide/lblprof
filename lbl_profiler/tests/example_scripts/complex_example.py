@@ -13,7 +13,7 @@ class Calculator:
 
     def simulate_workload(self):
         for _ in range(3):
-            time.sleep(0.1)
+            time.sleep(0.05)
             self.values.append(random.randint(1, 100))
 
 
@@ -36,7 +36,7 @@ def main():
     calc.simulate_workload()
 
     for i in range(10):
-        recursive_fib(i)    
+        recursive_fib(i)
 
 
 if __name__ == "__main__":
