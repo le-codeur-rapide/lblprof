@@ -1,6 +1,6 @@
 import os
 import pytest
-from lbl_profiler.line_stats_tree import LineStatsTree
+from lblprof.line_stats_tree import LineStatsTree
 
 
 @pytest.fixture

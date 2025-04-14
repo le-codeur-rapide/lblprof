@@ -4,7 +4,7 @@ import random
 import time
 import logging
 
-from lbl_profiler import (
+from lblprof import (
     set_custom_trace,
     stop_custom_trace,
 )

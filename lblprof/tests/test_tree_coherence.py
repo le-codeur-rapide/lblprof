@@ -4,8 +4,8 @@ import pytest
 import logging
 
 
-from lbl_profiler.line_stats_tree import LineStatsTree
-from lbl_profiler.tracer import CodeTracer
+from lblprof.line_stats_tree import LineStatsTree
+from lblprof.tracer import CodeTracer
 
 logging.basicConfig(level=logging.DEBUG)
 
