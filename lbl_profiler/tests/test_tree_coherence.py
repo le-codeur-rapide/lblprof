@@ -1,7 +1,10 @@
+import runpy
 import time
 import os
 import pytest
 import importlib.util
+import logging
+logging.basicConfig(level=logging.DEBUG)    
 
 from lbl_profiler.line_stats_tree import LineStatsTree
 from lbl_profiler.tracer import CodeTracer
@@ -21,6 +24,7 @@ EXAMPLE_SCRIPTS = [
     if f.endswith(".py") and not f.startswith("__")
 ]
 
+
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
 def tree(request):
     # run the tracer for a bit and return the tree
@@ -28,14 +32,11 @@ def tree(request):
     tracer.start_tracing()
     
     # Load and execute the example script
-    script_path = request.param
-    spec = importlib.util.spec_from_file_location("example_script", script_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    runpy.run_path(request.param, run_name="__main__")
     
     tracer.stop_tracing()
     # print the tree
-    print(f"Tree for {os.path.basename(script_path)}:")
+    print(f"Tree for {os.path.basename(request.param)}:")
     print(tracer.tree.display_tree())
     return tracer.tree
 
