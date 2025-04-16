@@ -385,7 +385,7 @@ class LineStatsTree:
                 if not is_last_root:
                     print()
 
-    def show_interactive(self):
+    def show_interactive(self, min_time_ms: int = 1):
         """Display the tree in an interactive terminal interface."""
 
         # Define the data provider
@@ -393,13 +393,18 @@ class LineStatsTree:
         def get_tree_data(node_key=None):
             if node_key is None:
                 # Return root nodes
-                return self._get_root_lines()
+                return [
+                    line
+                    for line in self._get_root_lines()
+                    if line.total_time >= min_time_ms
+                ]
             else:
                 # Return children of the specified node
                 return [
                     self.lines[child_key]
                     for child_key in self.lines[node_key].child_keys
                     if child_key in self.lines
+                    and self.lines[child_key].total_time >= min_time_ms
                 ]
 
         # Define the node formatter function
