@@ -4,10 +4,7 @@ import random
 import time
 import logging
 
-from lblprof import (
-    set_custom_trace,
-    stop_custom_trace,
-)
+from lblprof import set_custom_trace, stop_custom_trace, show_tree
 
 logging.basicConfig(level=logging.INFO)
 
@@ -95,7 +92,7 @@ time.sleep(1)  # Simulate some delay
 fib(2)
 stop_custom_trace()
 
-# show_tree()
+show_tree()
 # show_interactive_tree()
 
 # build_tree()

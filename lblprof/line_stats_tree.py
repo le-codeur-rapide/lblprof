@@ -171,7 +171,7 @@ class LineStatsTree:
         hits: int,
         time_ms: float,
         source: str,
-        parent_key: Tuple[str, str, int],
+        parent_key: Optional[Tuple[str, str, int]],  # None if this is a root
     ) -> None:
         """Update the tree with a line execution event.
 
@@ -191,7 +191,7 @@ class LineStatsTree:
         line_key = (file_name, function_name, line_no)
 
         # Check if the parent exists and create it if needed
-        if parent_key not in self.lines:
+        if parent_key and parent_key not in self.lines:
             # If parent doesn't exist, create it
             self.create_line(
                 file_name=parent_key[0],
