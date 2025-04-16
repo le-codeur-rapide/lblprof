@@ -71,7 +71,15 @@ class CodeTracer:
         elif event == "line":
             logging.debug(f"Tracing line {line_no} in {file_name} ({func_name})")
             # A line of code is executed
-            parent_key = self.call_stack[-1]
+            parent_key = (
+                self.call_stack[-1]
+                if self.call_stack
+                else (
+                    frame.f_back.f_code.co_filename,
+                    frame.f_back.f_code.co_name,
+                    frame.f_back.f_lineno,
+                )
+            )
             if not self.tempo_line_infos:
                 # This is the first line executed, there is no new duration to store in the tree,
                 # we just store the current line info
@@ -123,6 +131,11 @@ class CodeTracer:
     def start_tracing(self) -> None:
         # Reset state
         self.__init__()
+        frame = sys._getframe().f_back
+        while frame:
+            frame.f_trace = self.trace_function
+            self.botframe = frame
+            frame = frame.f_back
         sys.settrace(self.trace_function)
 
     def stop_tracing(self) -> None:
