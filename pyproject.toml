@@ -40,7 +40,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 log_cli = true
-log_cli_level = "INFO"
+log_cli_level = "DEBUG"
 addopts = "-v -x"
 
 [tool.black]

@@ -37,7 +37,6 @@ class CodeTracer:
 
         line_no = frame.f_lineno
         func_name = code.co_name
-        frame.f_trace_opcodes = True
         # Get time and create key
         line_key = (file_name, func_name, line_no)
         # Get or store source code of the line
@@ -99,11 +98,21 @@ class CodeTracer:
             # If we have a previous line, we can calculate the time elapsed for it and
             # add it to the tree
             elapsed = (now - self.last_time) * 1000
+
             self.tree.update_line_event(
                 file_name=self.tempo_line_infos[0],
                 function_name=self.tempo_line_infos[1],
                 line_no=self.tempo_line_infos[2],
-                hits=1,
+                # We do that because if the function has no return, the last line will be
+                # treated twice for event line and call, in terms of duration it will be
+                # the same but we have to make sure hit is 1 in total
+                hits=(
+                    0
+                    if self.tempo_line_infos[2] == line_no
+                    and self.tempo_line_infos[1] == func_name
+                    and self.tempo_line_infos[0] == file_name
+                    else 1
+                ),
                 time_ms=elapsed,
                 source=self.tempo_line_infos[3],
                 parent_key=self.tempo_line_infos[4],
