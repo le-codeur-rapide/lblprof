@@ -9,25 +9,6 @@ from .line_stats_tree import LineStatsTree
 logging.basicConfig(level=logging.DEBUG)
 
 
-def is_user_code(frame):
-    module = inspect.getmodule(frame)
-    if module is None:
-        return False
-
-    # Get the full path of the module
-    filename = inspect.getfile(module)
-
-    # Check if it's within the project directory
-    project_dir = os.getcwd()  # Assumes current working directory is project root
-
-    # Check if file is in project directory but not in site-packages
-    return (
-        project_dir in filename
-        and "site-packages" not in filename
-        and "dist-packages" not in filename
-    )
-
-
 class CodeTracer:
     def __init__(self):
         # We use a dictionary to store the source code of lines
@@ -41,18 +22,6 @@ class CodeTracer:
         # Use to store the line info until next line to have the time of the line
         self.tempo_line_infos = None
 
-        # We use this to not try to trace modules not written by the user
-        self.home_dir = os.path.expanduser("~")
-        self.site_packages_paths = [
-            os.path.join(self.home_dir, ".local/lib"),  # Local user packages
-            "/usr/lib",  # System-wide packages
-            "/usr/local/lib",  # Another common location
-            "site-packages",  # Catch any other site-packages
-            "frozen importlib",  # Frozen modules
-            "frozen zipimport",  # Frozen zipimport modules
-            "<",  # built-in modules
-        ]
-
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # main function that will replace the default trace function
         # using sys.settrace
@@ -63,7 +32,7 @@ class CodeTracer:
         line_no = frame.f_lineno
 
         # Skip installed modules
-        if self._is_installed_module(file_name) or not is_user_code(frame):
+        if not self._is_user_code(frame):
             return None
 
         # Get time and create key
@@ -159,9 +128,38 @@ class CodeTracer:
     def stop_tracing(self) -> None:
         sys.settrace(None)
 
-    def _is_installed_module(self, filename: str) -> bool:
-        """Check if a file belongs to an installed module rather than user code."""
-        return (
-            any(path in filename for path in self.site_packages_paths)
-            or len(filename) == 0
+    def _is_user_code(self, frame: str) -> bool:
+        """Check if a file belongs to an installed module rather than user code.
+        This is usd to determine if we want to trace a line or not"""
+        # We use this to not try to trace modules not written by the user
+        module = inspect.getmodule(frame)
+        if module is None:
+            return False
+        filename = inspect.getfile(module)
+
+        # Check if it's within the project directory
+        project_dir = os.getcwd()
+
+        # Check if file is in project directory but not in site-packages
+        is_code_in_working_dir = (
+            project_dir in filename
+            and "site-packages" not in filename
+            and "dist-packages" not in filename
         )
+
+        # Now we check if the code is in site-packages
+        home_dir = os.path.expanduser("~")
+        site_packages_paths = [
+            os.path.join(home_dir, ".local/lib"),  # Local user packages
+            "/usr/lib",  # System-wide packages
+            "/usr/local/lib",  # Another common location
+            "site-packages",  # Catch any other site-packages
+            "frozen importlib",  # Frozen modules
+            "frozen zipimport",  # Frozen zipimport modules
+            "<",  # built-in modules
+        ]
+        is_code_in_site_packages = (
+            any(path in filename for path in site_packages_paths) or len(filename) == 0
+        )
+
+        return is_code_in_working_dir and not is_code_in_site_packages
