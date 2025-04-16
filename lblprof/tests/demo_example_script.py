@@ -21,4 +21,4 @@ runpy.run_path(script_path, run_name="__main__")
 
 stop_custom_trace()
 # print the tree
-print(show_interactive_tree())
+show_interactive_tree(min_time_ms=1)

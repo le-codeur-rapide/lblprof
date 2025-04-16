@@ -20,6 +20,6 @@ def show_tree() -> None:
 
 
 # Add a module-level function to expose the interactive UI
-def show_interactive_tree():
+def show_interactive_tree(min_time_ms: int = 1):
     """Display an interactive tree in the terminal."""
-    tracer.tree.show_interactive()
+    tracer.tree.show_interactive(min_time_ms=min_time_ms)
