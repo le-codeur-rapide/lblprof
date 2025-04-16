@@ -16,20 +16,31 @@ class CodeTracer:
         # Call stack to handle nested calls
         self.call_stack: List[Tuple[str, str, int]] = []
         # Current line tracking
-        self.last_time: float = time.time()
+        self.last_time: float = time.perf_counter()
         # We use this to store the tree of line stats
         self.tree = LineStatsTree()
         # Use to store the line info until next line to have the time of the line
         self.tempo_line_infos = None
+
+        # frame = sys._getframe().f_back
+        # start = time.perf_counter()
+        # code = frame.f_code
+        # file_name = code.co_filename
+        # is_user_code = self._is_user_code(frame, file_name)
+        # self.overhead = time.perf_counter() - start
+        # logging.debug(f"Overhead: {self.overhead}")
+        # logging.debug(f"Is user code: {is_user_code}")
 
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # main function that will replace the default trace function
         # using sys.settrace
 
         # First thing to do is to return None as fast as possible if the code is not user code
+        now = time.perf_counter()
         code = frame.f_code
         file_name = code.co_filename
         if not self._is_user_code(frame, file_name):
+            self.last_time += time.perf_counter() - now
             return None
         # If the code is user code, we can continue
 
@@ -37,7 +48,6 @@ class CodeTracer:
         func_name = code.co_name
         frame.f_trace_opcodes = True
         # Get time and create key
-        now = time.time()
         line_key = (file_name, func_name, line_no)
         # Get or store source code of the line
         if line_key not in self.line_source:
@@ -102,8 +112,8 @@ class CodeTracer:
             )
 
             # Store current line info for next line + reset last_time
-            self.last_time = now
             self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
+            self.last_time = now
 
         elif event == "return":
             # A function is returning
@@ -115,9 +125,9 @@ class CodeTracer:
             # We still need to update time and last infos for the next line
             # This is what I found for now, problem is that if some computation is made at return line,
             # we don't know it
-            self.last_time = now
             parent_key = self.call_stack[-1] if self.call_stack else None
             self.tempo_line_infos = None
+            self.last_time = now
 
         # We need to return the trace function to continue tracing
         # https://docs.python.org/3.8/library/sys.html#sys.settrace:~:text=The%20local%20trace%20function%20should
