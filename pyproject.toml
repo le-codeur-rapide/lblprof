@@ -21,6 +21,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "chromadb>=0.5.23",
+    "pandas>=2.0.3",
     "pydantic>=2.0.0",
 ]
 

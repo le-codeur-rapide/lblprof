@@ -5,3 +5,4 @@ lbl_profiler.egg-info/
 dist/
 build/
 *.egg-info/
+uv.lock
