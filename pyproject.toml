@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lblprof"
-version = "0.1.0"
+version = "0.1.1"
 description = "Line by line terminal based profiler"
 authors = [
   { name="Paul", email="paul.pro@gmail.com" }
@@ -33,10 +33,10 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["lbl_profiler"]
+packages = ["lblprof"]
 
 [tool.pytest.ini_options]
-testpaths = ["lbl_profiler/tests"]
+testpaths = ["lblprof/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
