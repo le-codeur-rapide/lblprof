@@ -12,7 +12,7 @@ class LineStats(BaseModel):
     function_name: str = Field(
         ..., min_length=1, description="Function containing this line"
     )
-    line_no: int = Field(..., ge=1, description="Line number in the source file")
+    line_no: int = Field(..., ge=0, description="Line number in the source file")
     hits: int = Field(..., ge=0, description="Number of times this line was executed")
     time: float = Field(
         ..., ge=0, description="Time spent on this line in milliseconds"
