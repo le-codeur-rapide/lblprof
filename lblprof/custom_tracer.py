@@ -22,15 +22,6 @@ class CodeTracer:
         # Use to store the line info until next line to have the time of the line
         self.tempo_line_infos = None
 
-        # frame = sys._getframe().f_back
-        # start = time.perf_counter()
-        # code = frame.f_code
-        # file_name = code.co_filename
-        # is_user_code = self._is_user_code(frame, file_name)
-        # self.overhead = time.perf_counter() - start
-        # logging.debug(f"Overhead: {self.overhead}")
-        # logging.debug(f"Is user code: {is_user_code}")
-
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # main function that will replace the default trace function
         # using sys.settrace
