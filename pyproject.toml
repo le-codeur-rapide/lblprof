@@ -28,7 +28,6 @@ dependencies = [
 dev = [
     "ruff>=0.3.0",
     "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
     "black>=24.2.0",
 ]
 
@@ -40,6 +39,8 @@ testpaths = ["lblprof/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "INFO"
 addopts = "-v -x"
 
 [tool.black]

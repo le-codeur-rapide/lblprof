@@ -5,7 +5,7 @@ import logging
 
 
 from lblprof.line_stats_tree import LineStatsTree
-from lblprof.tracer import CodeTracer
+from lblprof.custom_tracer import CodeTracer
 
 logging.basicConfig(level=logging.DEBUG)
 

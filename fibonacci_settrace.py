@@ -84,15 +84,22 @@ def main2():
     time.sleep(1)  # Simulate some delay
 
 
+# tracer = CodeTracer()
+# tracer.start_tracing()
 set_custom_trace()
 
 # main()
 # main2()
 time.sleep(1)  # Simulate some delay
-fib(2)
-stop_custom_trace()
+start = time.time()
 
+print(time.time() - start)
+time.sleep(2)
+stop_custom_trace()
 show_tree()
+# tracer.stop_tracing()
+
+# tracer.tree.display_tree()
 # show_interactive_tree()
 
 # build_tree()

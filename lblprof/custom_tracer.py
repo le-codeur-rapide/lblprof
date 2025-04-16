@@ -25,20 +25,20 @@ class CodeTracer:
     def trace_function(self, frame: Any, event: str, arg: Any) -> Any:
         # main function that will replace the default trace function
         # using sys.settrace
-        frame.f_trace_opcodes = True
+
+        # First thing to do is to return None as fast as possible if the code is not user code
         code = frame.f_code
-        func_name = code.co_name
         file_name = code.co_filename
-        line_no = frame.f_lineno
-
-        # Skip installed modules
-        if not self._is_user_code(frame):
+        if not self._is_user_code(frame, file_name):
             return None
+        # If the code is user code, we can continue
 
+        line_no = frame.f_lineno
+        func_name = code.co_name
+        frame.f_trace_opcodes = True
         # Get time and create key
         now = time.time()
         line_key = (file_name, func_name, line_no)
-
         # Get or store source code of the line
         if line_key not in self.line_source:
             try:
@@ -53,6 +53,10 @@ class CodeTracer:
             except Exception:
                 self.line_source[line_key] = "<source not available>"
         source = self.line_source[line_key]
+        # Skip installed modules
+        logging.debug(
+            f"Tracing {event} {line_no} in {file_name} ({func_name}): {source} "
+        )
 
         if event == "call":
             # A function is called
@@ -69,8 +73,6 @@ class CodeTracer:
             self.call_stack.append(caller_key)
 
         elif event == "line":
-            logging.debug(f"Tracing line {line_no} in {file_name} ({func_name})")
-
             # If there are no call in the stack, we setup a placeholder for
             # the root of the tree
             parent_key = self.call_stack[-1] if self.call_stack else None
@@ -104,7 +106,6 @@ class CodeTracer:
             self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
 
         elif event == "return":
-            logging.debug(f"Returning from {func_name} in {file_name} ({line_no})")
             # A function is returning
             # We just need to pop the last line from the call stack so newt
             # lines will have the correct parent
@@ -135,14 +136,29 @@ class CodeTracer:
     def stop_tracing(self) -> None:
         sys.settrace(None)
 
-    def _is_user_code(self, frame: str) -> bool:
+    def _is_user_code(self, frame: str, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code.
         This is usd to determine if we want to trace a line or not"""
+        # !!! This code is called for each line of external modules
+        # It is very important to keep it as fast as possible to limit overhead
+
+        site_packages_paths = [
+            os.path.join(os.path.expanduser("~"), ".local/lib"),  # Local user packages
+            "/usr/lib",  # System-wide packages
+            "/usr/local/lib",  # Another common location
+            "site-packages",  # Catch any other site-packages
+            "frozen importlib",  # Frozen modules
+            "frozen zipimport",  # Frozen zipimport modules
+            "<",  # built-in modules
+        ]
+        for path in site_packages_paths:
+            if path in filename:
+                return False
+
         # We use this to not try to trace modules not written by the user
         module = inspect.getmodule(frame)
         if module is None:
             return False
-        filename = inspect.getfile(module)
 
         # Check if it's within the project directory
         project_dir = os.getcwd()
@@ -154,19 +170,4 @@ class CodeTracer:
             and "dist-packages" not in filename
         )
 
-        # Now we check if the code is in site-packages
-        home_dir = os.path.expanduser("~")
-        site_packages_paths = [
-            os.path.join(home_dir, ".local/lib"),  # Local user packages
-            "/usr/lib",  # System-wide packages
-            "/usr/local/lib",  # Another common location
-            "site-packages",  # Catch any other site-packages
-            "frozen importlib",  # Frozen modules
-            "frozen zipimport",  # Frozen zipimport modules
-            "<",  # built-in modules
-        ]
-        is_code_in_site_packages = (
-            any(path in filename for path in site_packages_paths) or len(filename) == 0
-        )
-
-        return is_code_in_working_dir and not is_code_in_site_packages
+        return is_code_in_working_dir
