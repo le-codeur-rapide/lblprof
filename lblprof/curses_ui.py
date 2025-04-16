@@ -105,10 +105,10 @@ class TerminalTreeUI:
 
         # Find where are the root nodes
         # and add spacers for them
-        for i, node in enumerate(display_data):
-            if i > 0 and node["depth"] == 0:
-                # This is a new root node, add a spacer before it
-                root_spacers.add(i)
+        # for i, node in enumerate(display_data):
+        #     if i > 0 and node["depth"] == 0:
+        # This is a new root node, add a spacer before it
+        # root_spacers.add(i)
 
         # Calculate visible range accounting for spacers
         visible_end = self.scroll_offset
@@ -219,11 +219,17 @@ class TerminalTreeUI:
         curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Highlighted text
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)  # Headers
 
+        # Enable keypad and nodelay for better input handling
+        stdscr.keypad(True)
+        stdscr.nodelay(False)  # Block and wait for input
+
         # Get root data from provider
         root_nodes = self.tree_data_provider()
 
         # Header and help text
-        help_text = "[↑/↓]: Navigate | [Enter]: Expand/Collapse | [q]: Quit"
+        help_text = (
+            "[↑/↓]: Navigate | [PgUp/PgDn]: Page | [Enter]: Expand/Collapse | [q]: Quit"
+        )
 
         # Main UI loop
         running = True
@@ -231,11 +237,20 @@ class TerminalTreeUI:
             # Get terminal dimensions
             max_y, max_x = stdscr.getmaxyx()
 
+            # Adjust scroll_offset if window is resized to be smaller
+            visible_height = max_y - 4
+            display_data = self._generate_display_data(root_nodes)
+            if self.current_pos >= len(display_data):
+                self.current_pos = len(display_data) - 1 if display_data else 0
+
+            # Make sure current position is visible
+            if self.current_pos < self.scroll_offset:
+                self.scroll_offset = self.current_pos
+            elif self.current_pos >= self.scroll_offset + visible_height:
+                self.scroll_offset = max(0, self.current_pos - visible_height + 1)
+
             # Clear screen
             stdscr.clear()
-
-            # Generate display data
-            display_data = self._generate_display_data(root_nodes)
 
             # Display header
             header = "LINE TRACE TREE"
@@ -271,6 +286,23 @@ class TerminalTreeUI:
                     visible_height = max_y - 4
                     if self.current_pos >= self.scroll_offset + visible_height:
                         self.scroll_offset = self.current_pos - visible_height + 1
+
+            elif key == curses.KEY_PPAGE:  # Page Up
+                # Move up a page
+                visible_height = max_y - 4
+                self.current_pos = max(0, self.current_pos - visible_height)
+                self.scroll_offset = max(0, self.scroll_offset - visible_height)
+
+            elif key == curses.KEY_NPAGE:  # Page Down
+                # Move down a page
+                visible_height = max_y - 4
+                self.current_pos = min(
+                    len(display_data) - 1, self.current_pos + visible_height
+                )
+                max_scroll = max(0, len(display_data) - visible_height)
+                self.scroll_offset = min(
+                    max_scroll, self.scroll_offset + visible_height
+                )
 
             elif key == ord("\n"):  # Enter key
                 # Toggle collapse state
