@@ -4,7 +4,11 @@ import random
 import time
 import logging
 
-from lblprof import set_custom_trace, stop_custom_trace, show_tree
+from lblprof import (
+    set_custom_trace,
+    show_interactive_tree,
+    stop_custom_trace,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -71,11 +75,11 @@ def function_that_imports():
 
 def main():
     fib(2)
-    fib(3)
-    time.sleep(1)  # Simulate some delay
-    function_2_second()
-    # other_function()
-    function_using_json()
+    # fib(3)
+    # time.sleep(1)  # Simulate some delay
+    # function_2_second()
+    # # other_function()
+    # function_using_json()
 
     # function_that_imports()
 
@@ -88,19 +92,19 @@ def main2():
 # tracer.start_tracing()
 set_custom_trace()
 
-# main()
-# main2()
+main()
+main2()
 time.sleep(1)  # Simulate some delay
-start = time.time()
+# start = time.time()
 
-print(time.time() - start)
-time.sleep(2)
+# print(time.time() - start)
+# time.sleep(2)
 stop_custom_trace()
-show_tree()
+# show_tree()
 # tracer.stop_tracing()
 
 # tracer.tree.display_tree()
-# show_interactive_tree()
+show_interactive_tree()
 
 # build_tree()
 

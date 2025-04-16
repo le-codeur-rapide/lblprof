@@ -157,7 +157,7 @@ class LineStatsTree:
                 if line_no - 1 < len(lines):
                     return lines[line_no - 1].strip()
                 else:
-                    return ""
+                    return " "
         except Exception as e:
             return (
                 f"Error getting source code of line {line_no} in file {file_name}: {e}"

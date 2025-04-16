@@ -61,19 +61,26 @@ class CodeTracer:
 
         if event == "call":
             # A function is called
+            if not self.tempo_line_infos:
+                raise Exception("At this point we should have a tempo line infos")
 
-            # Get caller info (line that calls the function)
-            caller_file = frame.f_back.f_code.co_filename
-            caller_func = frame.f_back.f_code.co_name
-            caller_line = frame.f_back.f_lineno
+            # We get info on who called the function
+            # Using the tempo line infos instead of frame.f_back allows us to
+            # get information about last parent that is from user code and not
+            # from an imported / built in module
+            caller_file = self.tempo_line_infos[0]
+            caller_func = self.tempo_line_infos[1]
+            caller_line = self.tempo_line_infos[2]
             caller_key = (caller_file, caller_func, caller_line)
 
             # Update call stack
             # Until we return from the function, all lines executed will have
             # the caller line as parent
+            logging.debug(f" adding to stack: {caller_key}")
             self.call_stack.append(caller_key)
 
-        elif event == "line":
+        elif event == "line" or event == "return":
+
             # If there are no call in the stack, we setup a placeholder for
             # the root of the tree
             parent_key = self.call_stack[-1] if self.call_stack else None
@@ -106,19 +113,17 @@ class CodeTracer:
             self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
             self.last_time = now
 
-        elif event == "return":
-            # A function is returning
-            # We just need to pop the last line from the call stack so newt
-            # lines will have the correct parent
-            if self.call_stack:
-                self.call_stack.pop()
+            if event == "return":
+                logging.debug(f" popping from stack: {self.call_stack[-1]}")
 
-            # We still need to update time and last infos for the next line
-            # This is what I found for now, problem is that if some computation is made at return line,
-            # we don't know it
-            parent_key = self.call_stack[-1] if self.call_stack else None
-            self.tempo_line_infos = None
-            self.last_time = now
+                # A function is returning
+                # We just need to pop the last line from the call stack so newt
+                # lines will have the correct parent
+                if self.call_stack:
+                    self.call_stack.pop()
+
+                # We still need to update time and last infos for the next line
+                self.last_time = now
 
         # We need to return the trace function to continue tracing
         # https://docs.python.org/3.8/library/sys.html#sys.settrace:~:text=The%20local%20trace%20function%20should
