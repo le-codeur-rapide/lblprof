@@ -88,7 +88,7 @@ def main2():
     time.sleep(1)  # Simulate some delay
 
 
-# tracer = CodeTracer()
+# tracer = CodeMonitor()
 # tracer.start_tracing()
 set_custom_trace()
 

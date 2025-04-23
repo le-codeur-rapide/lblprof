@@ -201,12 +201,23 @@ class CodeMonitor:
         )
 
         # Turn on monitoring for all events we're interested in
-        sys.monitoring.set_events(
+        current_frame = (
+            sys._getframe().f_back.f_back
+        )  # 2 f_back to get out of the function call
+        logging.debug(f"info on current frame: {current_frame.f_code}")
+        logging.debug(f"info on current frame: {current_frame.f_code.co_filename}")
+        logging.debug(f"info on current frame: {current_frame.f_code.co_name}")
+        logging.debug(f"info on current frame: {current_frame.f_code.co_firstlineno}")
+        # The idea is that we register for calls at global level to not miss future calls and we register for lines at the current frame (take care of set_local so it can be removed)
+        sys.monitoring.set_events(self.tool_id, sys.monitoring.events.PY_START)
+        sys.monitoring.set_local_events(
+            # sys.monitoring.set_events(
             self.tool_id,
-            sys.monitoring.events.PY_START,
-            # | sys.monitoring.events.LINE
-            # | sys.monitoring.events.PY_RETURN,
+            current_frame.f_code,
+            # sys.monitoring.events.PY_START
+            sys.monitoring.events.LINE | sys.monitoring.events.PY_RETURN,
         )
+
         logging.debug("Tracing started")
 
     def stop_tracing(self) -> None:

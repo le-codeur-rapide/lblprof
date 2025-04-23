@@ -2,12 +2,12 @@ import logging
 import sys
 
 # Import the base tracer that works on all Python versions
-from .custom_tracer import CodeTracer
+from .custom_sysmon import CodeMonitor
 
 
-__all__ = ["CodeTracer"]
+__all__ = ["CodeMonitor"]
 # Create a singleton instance for the module
-tracer = CodeTracer()
+tracer = CodeMonitor()
 
 # Import the sys.monitoring-based tracer if Python 3.12+ is available
 if hasattr(sys, "monitoring"):

@@ -5,7 +5,7 @@ import logging
 
 
 from lblprof.line_stats_tree import LineStatsTree
-from lblprof.custom_tracer import CodeTracer
+from lblprof.custom_sysmon import CodeMonitor
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,7 +28,7 @@ EXAMPLE_SCRIPTS = [
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
 def tree(request):
     # run the tracer for a bit and return the tree
-    tracer = CodeTracer()
+    tracer = CodeMonitor()
     tracer.start_tracing()
 
     # Load and execute the example script

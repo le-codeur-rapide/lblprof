@@ -2,6 +2,7 @@ import runpy
 import os
 import logging
 import sys
+import time
 
 sys.path.append(os.getcwd())
 from lblprof import (
@@ -17,12 +18,12 @@ path_example_folder = os.path.join(os.path.dirname(__file__), "example_scripts")
 # script_name = "data_computation.py"
 script_name = "chroma_vector_search.py"
 # script_name = "fibonacci.py"
-# script_name = "import_pandas.py"
+script_name = "import_pandas.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 # run the tracer for a bit and return the tree
 set_custom_trace()
-
+time.sleep(1)
 # Load and execute the example script
 runpy.run_path(script_path, run_name="__main__")
 
