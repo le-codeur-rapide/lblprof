@@ -1,7 +1,6 @@
 import logging
 import sys
 import time
-import os
 from typing import Dict, List, Tuple
 from .line_stats_tree import LineStatsTree
 
@@ -14,33 +13,33 @@ if not hasattr(sys, "monitoring"):
 
 class CodeMonitor:
     """
-    A code monitor using the sys.monitoring API (Python 3.12+)
+    This class uses the sys.monitoring API (Python 3.12+) to register execution time for each line of code.
+    It will create a tree of the execution time for each line of code, keeping track of the frame (the function / module)
+    that called it.
     """
 
     def __init__(self):
         # Define a unique monitoring tool ID
         self.tool_id = sys.monitoring.PROFILER_ID
 
-        # We use a dictionary to store the source code of lines
+        # We use a dictionnary to cache the source code of lines
         self.line_source: Dict[Tuple[str, str, int], str] = {}
-        # Call stack to handle nested calls
+
+        # Call stack to store callers and keep track of the functions that called the current frame
         self.call_stack: List[Tuple[str, str, int]] = []
+
         # Current line tracking
         self.last_time: float = time.perf_counter()
+
         # We use this to store the tree of line stats
         self.tree = LineStatsTree()
-        # Use to store the line info until next line to have the time of the line
+
+        # Use to store the line info until next line to be able to calculate the time of the line
         self.tempo_line_infos = None
-        self.count = 0
-        self.site_packages_paths = [
-            os.path.join(os.path.expanduser("~"), ".local/lib"),  # Local user packages
-            "/usr/lib",  # System-wide packages
-            "/usr/local/lib",  # Another common location
-            "site-packages",  # Catch any other site-packages
-            "frozen importlib",  # Frozen modules
-            "frozen zipimport",  # Frozen zipimport modules
-            "<",  # built-in modules
-        ]
+
+        # We use this to store the overhead of the monitoring tool and deduce it from the total time
+        # The time of execution of the program will still be longer but at least the displayed time will be
+        # more accurate
         self.overhead = 0
 
     def _handle_call(self, code, instruction_offset):
@@ -50,12 +49,14 @@ class CodeMonitor:
 
         # Skip if not user code
         if not self._is_user_code(file_name):
+            # deactivate monitoring for this function
             sys.monitoring.set_local_events(self.tool_id, code, 0)
             self.overhead += time.perf_counter() - start
             return
 
         func_name = code.co_name
         line_no = code.co_firstlineno
+        # We entered a frame from user code, we activate monitoring for it
         sys.monitoring.set_local_events(
             self.tool_id,
             code,
@@ -72,6 +73,7 @@ class CodeMonitor:
         # get information about last parent that is from user code and not
         # from an imported / built in module
         if not self.tempo_line_infos:
+            # Here we are called by root, so no caller in the stack
             return
 
         caller_file = self.tempo_line_infos[0]
@@ -91,9 +93,12 @@ class CodeMonitor:
         file_name = code.co_filename
         func_name = code.co_name
         line_no = line_number
-
-        # Get time and create key
         line_key = (file_name, func_name, line_no)
+
+        # Skip if not user code
+        if not self._is_user_code(file_name):
+            self.overhead += time.perf_counter() - now
+            return sys.monitoring.DISABLE
 
         # Get or store source code of the line
         if line_key not in self.line_source:
@@ -110,15 +115,12 @@ class CodeMonitor:
                 self.line_source[line_key] = "<source not available>"
         source = self.line_source[line_key]
 
-        # Skip if not user code
-        if not self._is_user_code(file_name):
-            self.overhead += time.perf_counter() - now
-            return sys.monitoring.DISABLE
         logging.debug(f"Tracing line {line_no} in {file_name} ({func_name}): {source}")
 
         # If there are no call in the stack, we setup a placeholder for
         # the root of the tree
         parent_key = self.call_stack[-1] if self.call_stack else None
+
         if not self.tempo_line_infos:
             # This is the first line executed, there is no new duration to store in the tree,
             # we just store the current line info
@@ -133,8 +135,7 @@ class CodeMonitor:
 
         # If we have a previous line, we can calculate the time elapsed for it and
         # add it to the tree
-        print(f"self.overhead: {self.overhead}")
-        print(f"now - self.last_time: {now - self.last_time}")
+        # We remove the overhead of the monitoring tool and the time of the previous line
         elapsed = (now - self.last_time - self.overhead) * 1000
 
         self.tree.update_line_event(
@@ -156,7 +157,7 @@ class CodeMonitor:
             parent_key=self.tempo_line_infos[4],
         )
 
-        # Store current line info for next line + reset last_time
+        # Store current line info for next line + reset last_time and overhead
         self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
         self.last_time = time.perf_counter()
         self.overhead = 0
@@ -181,9 +182,6 @@ class CodeMonitor:
         if self.call_stack:
             self.call_stack.pop()
 
-        # We still need to update time for the next line
-        self.tempo_line_infos = None
-
     def start_tracing(self) -> None:
         # Reset state
         self.__init__()
@@ -200,24 +198,16 @@ class CodeMonitor:
             self.tool_id, sys.monitoring.events.PY_RETURN, self._handle_return
         )
 
-        # Turn on monitoring for all events we're interested in
-        current_frame = (
-            sys._getframe().f_back.f_back
-        )  # 2 f_back to get out of the function call
-        logging.debug(f"info on current frame: {current_frame.f_code}")
-        logging.debug(f"info on current frame: {current_frame.f_code.co_filename}")
-        logging.debug(f"info on current frame: {current_frame.f_code.co_name}")
-        logging.debug(f"info on current frame: {current_frame.f_code.co_firstlineno}")
-        # The idea is that we register for calls at global level to not miss future calls and we register for lines at the current frame (take care of set_local so it can be removed)
+        # 2 f_back to get out of the function call
+        current_frame = sys._getframe().f_back.f_back
+        # The idea is that we register for calls at global level to not miss future calls and we register
+        # for lines at the current frame (take care of set_local so it can be removed)
         sys.monitoring.set_events(self.tool_id, sys.monitoring.events.PY_START)
         sys.monitoring.set_local_events(
-            # sys.monitoring.set_events(
             self.tool_id,
             current_frame.f_code,
-            # sys.monitoring.events.PY_START
             sys.monitoring.events.LINE | sys.monitoring.events.PY_RETURN,
         )
-
         logging.debug("Tracing started")
 
     def stop_tracing(self) -> None:
