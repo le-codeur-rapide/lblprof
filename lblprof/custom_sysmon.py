@@ -116,6 +116,13 @@ class CodeMonitor:
             return sys.monitoring.DISABLE
         logging.debug(f"Returning from {func_name} in {file_name} ({line_no})")
 
+        self.tree.add_line_event(
+            file_name=file_name,
+            function_name=func_name,
+            line_no=line_no + 999999,
+            start_time=now,
+            stack_trace=self.call_stack.copy(),
+        )
         # A function is returning
         # We just need to pop the last line from the call stack so next
         # lines will have the correct parent
@@ -153,6 +160,8 @@ class CodeMonitor:
     def stop_tracing(self) -> None:
         # Turn off monitoring for our tool
         sys.monitoring.set_events(self.tool_id, 0)
+        current_frame = sys._getframe().f_back.f_back
+        sys.monitoring.set_local_events(self.tool_id, current_frame.f_code, 0)
         sys.monitoring.free_tool_id(self.tool_id)
 
     def _is_user_code(self, filename: str) -> bool:

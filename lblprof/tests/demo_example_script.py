@@ -29,6 +29,7 @@ def main():
 start_tracing()
 time.sleep(1)
 main()
+import pandas as pd  # noqa: E402,F401
 
 # Load and execute the example script
 # runpy.run_path(script_path, run_name="__main__")

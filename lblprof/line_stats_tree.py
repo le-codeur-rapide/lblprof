@@ -66,8 +66,12 @@ class LineStatsTree:
 
     def build_tree(self) -> None:
         """Build the tree from the raw events list."""
-        for event in self.raw_events_list:
+        for i, event in enumerate(self.raw_events_list):
             source = self._get_source_code(event["file_name"], event["line_no"])
+            if "stop_tracing" in source:
+                # This allow to delete the line from the tree
+                # and set the end line for the root lines
+                event["line_no"] = 9999999
             event_key = make_key(event)
             self.events_index[event_key] = LineStats(
                 file_name=event["file_name"],
@@ -108,6 +112,8 @@ class LineStatsTree:
 
         # update time line by line
         for current_line in self.events_index.values():
+            if current_line.line_no > 999999:
+                continue
             brothers = (
                 self.root_lines
                 if current_line.parent is None
@@ -124,15 +130,22 @@ class LineStatsTree:
                 for brother_line_nb in brothers_line_nb:
                     if brother_line_nb > current_line_nb:
                         return brothers[brothers_line_nb.index(brother_line_nb)]
-                # TODO handle case for last line with the return event tracing
-                return None
+                logging.warning(f"Line info: {current_line}")
+                logging.warning(f"Brothers info: {brothers}")
+                raise ValueError(
+                    f"No next brother found for line {current_line.line_no}"
+                )
 
             next_brother = _get_next_brother(current_line, brothers)
-            if next_brother:
-                current_line.time = next_brother.start_time - current_line.start_time
-            else:
-                # TODO fix this case
-                current_line.time = 0
+            current_line.time = next_brother.start_time - current_line.start_time
+
+        # delete all lines with line_no > 999999
+        self.root_lines = [line for line in self.root_lines if line.line_no <= 999999]
+        self.events_index = {
+            key: line
+            for key, line in self.events_index.items()
+            if line.line_no <= 999999
+        }
 
     def _get_source_code(self, file_name: str, line_no: int) -> str:
         """Get the source code for a specific line in a file."""
@@ -212,9 +225,7 @@ class LineStatsTree:
             return all_children
 
         if root_key:
-            # Print a specific subtree
             if root_key not in self.events_index:
-                print(f"{prefix}{'?' * 40} [Line not found in stats]")
                 return
 
             line = self.events_index[root_key]
