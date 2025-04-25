@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lblprof"
-version = "0.1.1"
+version = "0.1.2"
 description = "Line by line terminal based profiler"
 authors = [
   { name="Paul", email="paul.pro@gmail.com" }
@@ -13,7 +13,7 @@ authors = [
   
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -21,13 +21,14 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "chromadb>=0.5.23",
-    "pandas>=2.0.3",
     "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "virtualenv>=20.30.0",
+    "pandas>=2.0.3",
+    "chromadb>=0.5.23",
     "ruff>=0.3.0",
     "pytest>=7.0.0",
     "black>=24.2.0",
@@ -47,4 +48,4 @@ addopts = "-v -x"
 
 [tool.black]
 line-length = 88
-target-version = ["py38"]
+target-version = ["py312"]
