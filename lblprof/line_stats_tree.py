@@ -284,29 +284,30 @@ class LineStatsTree:
                 if not is_last_root:
                     print()
 
-    def show_interactive(self, min_time_ms: int = 1):
+    def show_interactive(self, min_time_s: float = 0.1):
         """Display the tree in an interactive terminal interface."""
 
         # Define the data provider
         # Given a node (a line), return its children
-        def get_tree_data(node_key=None):
+        def get_tree_data(node_key: Optional[LineStats] = None) -> List[LineStats]:
             if node_key is None:
                 # Return root nodes
                 return [
-                    line for line in self.root_lines if line.total_time >= min_time_ms
+                    line
+                    for line in self.root_lines
+                    if line.time and line.time >= min_time_s
                 ]
             else:
                 # Return children of the specified node
                 return [
-                    self.lines[child_key]
-                    for child_key in self.lines[node_key].child_keys
-                    if child_key in self.lines
-                    and self.lines[child_key].total_time >= min_time_ms
+                    child
+                    for child in node_key.childs
+                    if child.time and child.time >= min_time_s
                 ]
 
         # Define the node formatter function
         # Given a line, return its formatted string (displayed in the UI)
-        def format_node(line, indicator=""):
+        def format_node(line: LineStats, indicator: str = "") -> str:
             filename = os.path.basename(line.file_name)
             line_id = f"{filename}::{line.function_name}::{line.line_no}"
 
@@ -316,7 +317,8 @@ class LineStatsTree:
             )
 
             # Format stats
-            stats = f"[hits:{line.hits} self:{line.self_time:.2f}ms total:{line.total_time:.2f}ms]"
+            assert line.time is not None
+            stats = f"[hits:{line.hits} time:{line.time:.2f}s]"
 
             # Return formatted line
             return f"{indicator}{line_id} {stats} - {truncated_source}"

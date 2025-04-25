@@ -8,6 +8,7 @@ from lblprof import (
     start_tracing,
     stop_tracing,
     show_tree,
+    show_interactive_tree,
 )
 
 logging.basicConfig(level=logging.DEBUG)
@@ -37,5 +38,5 @@ import pandas as pd  # noqa: E402,F401
 stop_tracing()
 # print the tree
 show_tree()
-# show_interactive_tree(min_time_ms=1)
+show_interactive_tree(min_time_s=0.1)
 #

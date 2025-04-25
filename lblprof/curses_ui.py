@@ -1,11 +1,24 @@
 import curses
-from typing import Callable
+from typing import Callable, List, Optional, TypedDict
+
+from lblprof.line_stat_object import LineStats
+
+
+class NodeTerminalUI(TypedDict):
+    line: LineStats
+    depth: int
+    is_last: bool
+    has_children: bool
 
 
 class TerminalTreeUI:
     """A terminal UI for displaying and interacting with tree data."""
 
-    def __init__(self, tree_data_provider: Callable, node_formatter: Callable):
+    def __init__(
+        self,
+        tree_data_provider: Callable[[Optional[LineStats]], List[LineStats]],
+        node_formatter: Callable[[LineStats, str], str],
+    ):
         """
         Initialize the terminal UI.
 
@@ -27,30 +40,33 @@ class TerminalTreeUI:
         self.current_pos = 0  # Current selected position
         self.scroll_offset = 0  # Vertical scroll offset
 
-    def _generate_display_data(self, root_nodes):
+    def _generate_display_data(
+        self, root_nodes: List[LineStats]
+    ) -> List[NodeTerminalUI]:
         """Generate flattened display data based on current UI state."""
-        display_data = []
+        display_data: List[NodeTerminalUI] = []
 
         # Process each root node
         for i, root in enumerate(root_nodes):
             is_last_root = i == len(root_nodes) - 1
 
-            # Add root node
-            node_data = {
+            node_data: NodeTerminalUI = {
                 "line": root,
                 "depth": 0,
                 "is_last": is_last_root,
-                "has_children": bool(root.child_keys),
+                "has_children": bool(root.childs),
             }
             display_data.append(node_data)
 
             # Add children only if explicitly expanded
-            if root.key in self.expanded_nodes:
+            if root.event_key in self.expanded_nodes:
                 self._add_children_to_display(display_data, root, 1)
 
         return display_data
 
-    def _add_children_to_display(self, display_data, parent, depth):
+    def _add_children_to_display(
+        self, display_data: List[NodeTerminalUI], parent: LineStats, depth: int
+    ):
         """Add children of a node to the display data recursively."""
         # Get all child lines
         child_lines = self._get_sorted_children(parent)
@@ -59,22 +75,22 @@ class TerminalTreeUI:
         for i, child in enumerate(child_lines):
             is_last_child = i == len(child_lines) - 1
 
-            node_data = {
+            node_data: NodeTerminalUI = {
                 "line": child,
                 "depth": depth,
                 "is_last": is_last_child,
-                "has_children": bool(child.child_keys),
+                "has_children": bool(child.childs),
             }
             display_data.append(node_data)
 
             # Add child's children only if explicitly expanded
-            if child.key in self.expanded_nodes:
+            if child.event_key in self.expanded_nodes:
                 self._add_children_to_display(display_data, child, depth + 1)
 
-    def _get_sorted_children(self, parent):
+    def _get_sorted_children(self, parent: LineStats) -> List[LineStats]:
         """Get children of a parent node."""
         # First get all valid children
-        children = self.tree_data_provider(parent.key)
+        children = self.tree_data_provider(parent)
 
         # Group children by file
         children_by_file = {}
@@ -94,7 +110,7 @@ class TerminalTreeUI:
 
         return all_children
 
-    def _render_tree(self, stdscr, display_data, max_y, max_x):
+    def _render_tree(self, stdscr, display_data: List[NodeTerminalUI], max_y, max_x):
         """Render the tree data on the screen."""
         # Limit display data to visible area
         visible_height = max_y - 4  # Account for header and help
@@ -102,13 +118,6 @@ class TerminalTreeUI:
         # Initialize screen position and map of rows that need spacing
         screen_y = 2  # Start after header
         root_spacers = set()  # Track where to add blank lines
-
-        # Find where are the root nodes
-        # and add spacers for them
-        # for i, node in enumerate(display_data):
-        #     if i > 0 and node["depth"] == 0:
-        # This is a new root node, add a spacer before it
-        # root_spacers.add(i)
 
         # Calculate visible range accounting for spacers
         visible_end = self.scroll_offset
@@ -148,7 +157,9 @@ class TerminalTreeUI:
             indicator = ""
             if node["has_children"]:
                 indicator = (
-                    "[+] " if node["line"].key not in self.expanded_nodes else "[-] "
+                    "[+] "
+                    if node["line"].event_key not in self.expanded_nodes
+                    else "[-] "
                 )
 
             # Format the node using the provided formatter
@@ -197,9 +208,11 @@ class TerminalTreeUI:
 
         return False
 
-    def _toggle_collapse(self, display_data, current_node):
+    def _toggle_collapse(
+        self, display_data: List[NodeTerminalUI], current_node: NodeTerminalUI
+    ):
         """Toggle collapse state of the current node."""
-        node_key = current_node["line"].key
+        node_key = current_node["line"].event_key
         if node_key in self.expanded_nodes:
             self.expanded_nodes.remove(node_key)
         else:
@@ -224,7 +237,7 @@ class TerminalTreeUI:
         stdscr.nodelay(False)  # Block and wait for input
 
         # Get root data from provider
-        root_nodes = self.tree_data_provider()
+        root_nodes = self.tree_data_provider(None)
 
         # Header and help text
         help_text = (
