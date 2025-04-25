@@ -163,7 +163,7 @@ class LineStatsTree:
         """Display a visual tree showing parent-child relationships between lines.
 
         Args:
-            root_key: Optional[Tuple[str, str, int]] - If provided, start from this line.
+            root_key: Optional[Tuple[LineKey, Tuple[LineKey, ...]]] - If provided, start from this line.
                                                     If None, start from all root lines.
             depth: int - Current recursion depth (for internal use).
             max_depth: int - Maximum depth to display.
@@ -179,14 +179,7 @@ class LineStatsTree:
         pipe = "│   "
         space = "    "
 
-        if root_key:
-            # Print a specific subtree
-            print(f"root_key: {root_key}")
-            if root_key not in self.events_index.keys():
-                print(f"{prefix}{'?' * 40} [Line not found in stats]")
-                return
-
-            line = self.events_index[root_key]
+        def format_line_info(line: LineStats, branch: str):
             filename = os.path.basename(line.file_name)
             line_id = f"{filename}::{line.function_name}::{line.line_no}"
 
@@ -195,18 +188,13 @@ class LineStatsTree:
                 line.source[:60] + "..." if len(line.source) > 60 else line.source
             )
 
-            # Display current line with time info, hits count and source on the same line
-            branch = branch_last if is_last else branch_mid
-            print(
-                f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time:.2f}ms] - {truncated_source}"
-            )
+            # Display line with time info and hits count
+            assert line.time is not None
+            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time*1000:.2f}ms] - {truncated_source}"
 
-            # Get all child lines
-            child_lines = [child for child in line.childs]
-
-            # Group children by file
-            children_by_file: Dict[str, List[LineStats]] = {}
-            for child in child_lines:
+        def group_children_by_file(children):
+            children_by_file = {}
+            for child in children:
                 if child.file_name not in children_by_file:
                     children_by_file[child.file_name] = []
                 children_by_file[child.file_name].append(child)
@@ -215,10 +203,30 @@ class LineStatsTree:
             for file_name in children_by_file:
                 children_by_file[file_name].sort(key=lambda x: x.line_no)
 
-            # Track whether a child is the last one to be displayed
-            all_children: List[LineStats] = []
+            return children_by_file
+
+        def get_all_children(children_by_file):
+            all_children = []
             for file_name in children_by_file:
                 all_children.extend(children_by_file[file_name])
+            return all_children
+
+        if root_key:
+            # Print a specific subtree
+            if root_key not in self.events_index:
+                print(f"{prefix}{'?' * 40} [Line not found in stats]")
+                return
+
+            line = self.events_index[root_key]
+            branch = branch_last if is_last else branch_mid
+            print(format_line_info(line, branch))
+
+            # Get all child lines
+            child_lines = line.childs
+
+            # Group and organize children
+            children_by_file = group_children_by_file(child_lines)
+            all_children = get_all_children(children_by_file)
 
             # Display child lines in order
             next_prefix = prefix + (space if is_last else pipe)
@@ -238,44 +246,20 @@ class LineStatsTree:
             print("=================================================")
 
             # Sort roots by total time (descending)
-            root_lines.sort(key=lambda x: x.time, reverse=True)
+            root_lines.sort(
+                key=lambda x: x.time if x.time is not None else 0, reverse=True
+            )
 
-            # For each root, render as a separate tree with branch characters
+            # For each root, render as a separate tree
             for i, root in enumerate(root_lines):
                 is_last_root = i == len(root_lines) - 1
                 branch = branch_last if is_last_root else branch_mid
 
-                filename = os.path.basename(root.file_name)
-                line_id = f"{filename}::{root.function_name}::{root.line_no}"
+                print(format_line_info(root, branch))
 
-                # Truncate source code
-                truncated_source = (
-                    root.source[:60] + "..." if len(root.source) > 60 else root.source
-                )
-
-                # Display root line with hits count
-                print(
-                    f"{branch}{line_id} [hits:{root.hits} total:{root.time:.2f}ms] - {truncated_source}"
-                )
-
-                # Get all child lines
-                child_lines = [child for child in root.childs]
-
-                # Group children by file
-                children_by_file = {}
-                for child in child_lines:
-                    if child.file_name not in children_by_file:
-                        children_by_file[child.file_name] = []
-                    children_by_file[child.file_name].append(child)
-
-                # Sort each file's lines by line number
-                for file_name in children_by_file:
-                    children_by_file[file_name].sort(key=lambda x: x.line_no)
-
-                # Track whether a child is the last one to be displayed
-                all_children: List[LineStats] = []
-                for file_name in children_by_file:
-                    all_children.extend(children_by_file[file_name])
+                # Get all child lines and organize them
+                children_by_file = group_children_by_file(root.childs)
+                all_children = get_all_children(children_by_file)
 
                 # Display child lines in order
                 next_prefix = space if is_last_root else pipe
