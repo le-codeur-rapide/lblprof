@@ -1,4 +1,3 @@
-import runpy
 import os
 import logging
 import sys
@@ -6,10 +5,9 @@ import time
 
 sys.path.append(os.getcwd())
 from lblprof import (
-    set_custom_trace,
-    stop_custom_trace,
+    start_tracing,
+    stop_tracing,
     show_tree,
-    show_interactive_tree,
 )
 
 logging.basicConfig(level=logging.DEBUG)
@@ -22,13 +20,20 @@ script_name = "chroma_vector_search.py"
 # script_name = "import_pandas.py"
 script_path = os.path.join(path_example_folder, script_name)
 
-# run the tracer for a bit and return the tree
-set_custom_trace()
-time.sleep(1)
-# Load and execute the example script
-runpy.run_path(script_path, run_name="__main__")
 
-stop_custom_trace()
+def main():
+    time.sleep(1)
+
+
+# run the tracer for a bit and return the tree
+start_tracing()
+time.sleep(1)
+main()
+# Load and execute the example script
+# runpy.run_path(script_path, run_name="__main__")
+
+stop_tracing()
 # print the tree
 show_tree()
-show_interactive_tree(min_time_ms=1)
+# show_interactive_tree(min_time_ms=1)
+#

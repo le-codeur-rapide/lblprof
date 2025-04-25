@@ -19,14 +19,15 @@ else:
     logging.warning("Python 3.12+ is required to use the sys.monitoring-based tracer.")
 
 
-def set_custom_trace() -> None:
+def start_tracing() -> None:
     """Start tracing code execution."""
     tracer.start_tracing()
 
 
-def stop_custom_trace() -> None:
+def stop_tracing() -> None:
     """Stop tracing code execution."""
     tracer.stop_tracing()
+    tracer.tree.build_tree()
 
 
 def show_tree() -> None:

@@ -91,53 +91,16 @@ class CodeMonitor:
         func_name = code.co_name
         line_no = line_number
 
-        # Skip if not user code
-        if not self._is_user_code(file_name):
-            self.overhead += time.perf_counter() - now
-            return sys.monitoring.DISABLE
-
-        # If there are no call in the stack, we setup a placeholder for
-        # the root of the tree
-        parent_key = self.call_stack[-1] if self.call_stack else None
-
-        if not self.tempo_line_infos:
-            # This is the first line executed, there is no new duration to store in the tree,
-            # we just store the current line info
-            self.tempo_line_infos = (
-                file_name,
-                func_name,
-                line_no,
-                parent_key,
-            )
-            return
-
-        # If we have a previous line, we can calculate the time elapsed for it and
-        # add it to the tree
-        # We remove the overhead of the monitoring tool and the time of the previous line
-        elapsed = (now - self.last_time - self.overhead) * 1000
-
-        self.tree.update_line_event(
-            file_name=self.tempo_line_infos[0],
-            function_name=self.tempo_line_infos[1],
-            line_no=self.tempo_line_infos[2],
-            # We do that because if the function has no return, the last line will be
-            # treated twice for event line and call, in terms of duration it will be
-            # the same but we have to make sure hit is 1 in total
-            hits=(
-                0
-                if self.tempo_line_infos[2] == line_no
-                and self.tempo_line_infos[1] == func_name
-                and self.tempo_line_infos[0] == file_name
-                else 1
-            ),
-            time_ms=elapsed,
-            parent_key=self.tempo_line_infos[3],
+        # Add the line record to the tree
+        logging.debug(f"tracing line: {file_name} {func_name} {line_no}")
+        self.tree.add_line_event(
+            file_name=file_name,
+            function_name=func_name,
+            line_no=line_no,
+            start_time=now,
+            stack_trace=self.call_stack.copy(),
         )
-
-        # Store current line info for next line + reset last_time and overhead
-        self.tempo_line_infos = (file_name, func_name, line_no, parent_key)
-        self.last_time = time.perf_counter()
-        self.overhead = 0
+        self.tempo_line_infos = (file_name, func_name, line_no)
 
     def _handle_return(self, code, instruction_offset, retval):
         """Handle function return events"""
