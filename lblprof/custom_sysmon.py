@@ -1,7 +1,7 @@
 import logging
 import sys
 import time
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 from .line_stats_tree import LineStatsTree
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,9 +21,6 @@ class CodeMonitor:
     def __init__(self):
         # Define a unique monitoring tool ID
         self.tool_id = sys.monitoring.PROFILER_ID
-
-        # We use a dictionnary to cache the source code of lines
-        self.line_source: Dict[Tuple[str, str, int], str] = {}
 
         # Call stack to store callers and keep track of the functions that called the current frame
         self.call_stack: List[Tuple[str, str, int]] = []
@@ -93,29 +90,11 @@ class CodeMonitor:
         file_name = code.co_filename
         func_name = code.co_name
         line_no = line_number
-        line_key = (file_name, func_name, line_no)
 
         # Skip if not user code
         if not self._is_user_code(file_name):
             self.overhead += time.perf_counter() - now
             return sys.monitoring.DISABLE
-
-        # Get or store source code of the line
-        if line_key not in self.line_source:
-            try:
-                with open(file_name, "r") as f:
-                    source_lines = f.readlines()
-                    source = (
-                        source_lines[line_no - 1].strip()
-                        if 0 <= line_no - 1 < len(source_lines)
-                        else "<line not available>"
-                    )
-                    self.line_source[line_key] = source
-            except Exception:
-                self.line_source[line_key] = "<source not available>"
-        source = self.line_source[line_key]
-
-        logging.debug(f"Tracing line {line_no} in {file_name} ({func_name}): {source}")
 
         # If there are no call in the stack, we setup a placeholder for
         # the root of the tree
@@ -128,7 +107,6 @@ class CodeMonitor:
                 file_name,
                 func_name,
                 line_no,
-                source,
                 parent_key,
             )
             return
@@ -153,12 +131,11 @@ class CodeMonitor:
                 else 1
             ),
             time_ms=elapsed,
-            source=self.tempo_line_infos[3],
-            parent_key=self.tempo_line_infos[4],
+            parent_key=self.tempo_line_infos[3],
         )
 
         # Store current line info for next line + reset last_time and overhead
-        self.tempo_line_infos = (file_name, func_name, line_no, source, parent_key)
+        self.tempo_line_infos = (file_name, func_name, line_no, parent_key)
         self.last_time = time.perf_counter()
         self.overhead = 0
 

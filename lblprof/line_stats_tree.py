@@ -17,6 +17,9 @@ class LineStatsTree:
         self.root_lines: List[Tuple[str, str, int]] = []
         # Total time for all tracked lines
         self.total_time_ms: float = 0
+        # cache of source code for lines
+        # key is (file_name, line_no) for a source code line
+        self.line_source: Dict[Tuple[str, int], str] = {}
 
     def _update_parent_times(
         self, parent_key: Tuple[str, str, int], time_delta: float
@@ -147,15 +150,15 @@ class LineStatsTree:
 
     def _get_source_code(self, file_name: str, line_no: int) -> str:
         """Get the source code for a specific line in a file."""
-        # At this point the source lines should be given by the tracer
-        # because it has the ability to kind of cache it. We ust this
-        # method only in edge cases where we need don't have it (ex root lines)
-        # Idealy we don't need this method at all.
+        if (file_name, line_no) in self.line_source:
+            return self.line_source[(file_name, line_no)]
         try:
             with open(file_name, "r") as f:
                 lines = f.readlines()
                 if line_no - 1 < len(lines):
-                    return lines[line_no - 1].strip()
+                    source = lines[line_no - 1].strip()
+                    self.line_source[(file_name, line_no)] = source
+                    return source
                 else:
                     return " "
         except Exception as e:
@@ -170,7 +173,6 @@ class LineStatsTree:
         line_no: int,
         hits: int,
         time_ms: float,
-        source: str,
         parent_key: Optional[Tuple[str, str, int]],  # None if this is a root
     ) -> None:
         """Update the tree with a line execution event.
@@ -189,6 +191,7 @@ class LineStatsTree:
         )
         # Basic line key (without parent information)
         line_key = (file_name, function_name, line_no)
+        source = self._get_source_code(file_name, line_no)
 
         # Check if the parent exists and create it if needed
         if parent_key and parent_key not in self.lines:
