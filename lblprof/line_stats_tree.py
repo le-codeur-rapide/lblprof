@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Literal, Tuple, Optional, Union
 from lblprof.curses_ui import TerminalTreeUI
 from lblprof.line_stat_object import LineStats, LineKey, LineEvent
 
@@ -28,9 +28,7 @@ class LineStatsTree:
 
     def __init__(self):
         self.raw_events_list: List[LineEvent] = []
-        self.events_index: Dict[Tuple[LineKey, Tuple[LineKey, ...]], LineStats] = {}
-        # Store all lines by their key
-        self.lines: Dict[Tuple[LineKey], LineStats] = {}
+        self.events_index: Dict[int, LineStats] = {}
         # Track root nodes (entry points with no parents)
         self.root_lines: List[LineStats] = []
         # Total time for all tracked lines
@@ -41,9 +39,10 @@ class LineStatsTree:
 
     def add_line_event(
         self,
+        id: int,
         file_name: str,
         function_name: str,
-        line_no: int,
+        line_no: Union[int, Literal["END_OF_FRAME"]],
         start_time: float,
         stack_trace: List[Tuple[str, str, int]],
     ) -> None:
@@ -56,6 +55,7 @@ class LineStatsTree:
         )
         self.raw_events_list.append(
             {
+                "id": id,
                 "file_name": file_name,
                 "function_name": function_name,
                 "line_no": line_no,
@@ -64,91 +64,142 @@ class LineStatsTree:
             }
         )
 
+    def save_events(self) -> None:
+        """Save the events to a file."""
+        with open("events.csv", "w") as f:
+            for event in self.raw_events_list:
+                f.write(
+                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']}\n"
+                )
+
+    def save_events_index(self) -> None:
+        """Save the events index to a file."""
+        pass
+
     def build_tree(self) -> None:
         """Build the tree from the raw events list."""
+        self.save_events()
         for i, event in enumerate(self.raw_events_list):
             source = self._get_source_code(event["file_name"], event["line_no"])
             if "stop_tracing" in source:
                 # This allow to delete the line from the tree
                 # and set the end line for the root lines
-                event["line_no"] = 9999999
-            event_key = make_key(event)
-            self.events_index[event_key] = LineStats(
-                file_name=event["file_name"],
-                function_name=event["function_name"],
-                line_no=event["line_no"],
-                stack_trace=event["stack_trace"],
-                start_time=event["start_time"],
-                hits=1,
-                avg_time=0.0,
-                source=source,
-            )
-        for event in self.raw_events_list:
+                event["line_no"] = "END_OF_FRAME"
+            event_key = event["id"]
+            if event_key not in self.events_index:
+                self.events_index[event_key] = LineStats(
+                    id=event["id"],
+                    file_name=event["file_name"],
+                    function_name=event["function_name"],
+                    line_no=event["line_no"],
+                    stack_trace=event["stack_trace"],
+                    start_time=event["start_time"],
+                    hits=1,
+                    avg_time=0.0,
+                    source=source,
+                )
+            else:
+                self.events_index[event_key].hits += 1
+
+        for id, event in self.events_index.items():
             # establish parent-child relationships
-            event_key = make_key(event)
-            node = self.events_index[event_key]
+            node = self.events_index[id]
 
             # Get parent from stack trace
-            if len(event["stack_trace"]) == 0:
+            if len(event.stack_trace) == 0:
                 # we are in a root line
-                self.root_lines.append(self.events_index[event_key])
+                self.root_lines.append(self.events_index[id])
                 continue
 
-            parent_stack, parent_key = event_key[1][:-1], event_key[1][-1]
-            parent_stack = tuple(
-                LineKey(
-                    file_name=key.file_name,
-                    function_name=key.function_name,
-                    line_no=key.line_no,
-                )
-                for key in parent_stack
+            # find id of parent_key in self.events_index
+            parent_key = LineKey(
+                file_name=event.stack_trace[-1][0],
+                function_name=event.stack_trace[-1][1],
+                line_no=event.stack_trace[-1][2],
             )
-
-            if parent_key:
-                parent_node = self.events_index.get((parent_key, parent_stack))
-                if parent_node:
-                    node.parent = (parent_key, parent_stack)
-                    parent_node.childs.append(node)
+            parent_id = next(
+                (
+                    key
+                    for key, line in self.events_index.items()
+                    if line.event_key[0] == parent_key
+                ),
+                None,
+            )
+            if parent_id is None:
+                logging.warning(
+                    f"Parent key {event.stack_trace[-1]} not found in events index"
+                )
+                continue
+            self.events_index[parent_id].childs.append(node)
+            node.parent = parent_id
+            self.events_index[id] = node
 
         # update time line by line
-        for current_line in self.events_index.values():
-            if current_line.line_no > 999999:
-                continue
-            brothers = (
-                self.root_lines
-                if current_line.parent is None
-                else self.events_index[current_line.parent].childs
-            )
-
-            def _get_next_brother(
-                line: LineStats, brothers: List[LineStats]
-            ) -> LineStats:
-                """Get the next brother of the current line."""
-                current_line_nb = line.line_no
-                brothers_line_nb = [brother.line_no for brother in brothers]
-                brothers_line_nb.sort()
-                for brother_line_nb in brothers_line_nb:
-                    if brother_line_nb > current_line_nb:
-                        return brothers[brothers_line_nb.index(brother_line_nb)]
-                logging.warning(f"Line info: {current_line}")
-                logging.warning(f"Brothers info: {brothers}")
-                raise ValueError(
-                    f"No next brother found for line {current_line.line_no}"
+        # key is id of parent line
+        # It is none for root lines
+        time_save: Dict[Union[int, None], Tuple[int, float]] = {}
+        for id, event in self.events_index.items():
+            if event.parent not in time_save:
+                logging.debug(
+                    f"Saving time for parent {event.parent} with id {event.id} and start time {event.start_time}"
                 )
+                time_save[event.parent] = (event.id, event.start_time)
+                continue
+            logging.debug(
+                f"Updating time for line {event.id} with parent {event.parent} and start time {event.start_time}"
+            )
+            previous_id, previous_start_time = time_save[event.parent]
+            self.events_index[previous_id].time = event.start_time - previous_start_time
+            time_save[event.parent] = (event.id, event.start_time)
 
-            next_brother = _get_next_brother(current_line, brothers)
-            current_line.time = next_brother.start_time - current_line.start_time
+        # remove END_OF_FRAME lines
+        for id, event in list(self.events_index.items()):
+            if event.line_no == "END_OF_FRAME":
+                parent_id = event.parent
+                if parent_id is not None:
+                    self.events_index[parent_id].childs.remove(event)
+                del self.events_index[id]
 
-        # delete all lines with line_no > 999999
-        self.root_lines = [line for line in self.root_lines if line.line_no <= 999999]
-        self.events_index = {
-            key: line
-            for key, line in self.events_index.items()
-            if line.line_no <= 999999
-        }
+        self.root_lines = [
+            line for line in self.events_index.values() if line.parent is None
+        ]
+        # merge lines that have same file_name, function_name and line_no
+        grouped_events = {}
 
-    def _get_source_code(self, file_name: str, line_no: int) -> str:
+        def merge_events(event: LineStats):
+            for child in event.childs:
+                key = (child.file_name, child.function_name, child.line_no)
+                if key not in grouped_events:
+                    grouped_events[key] = child
+                else:
+                    grouped_events[key].time += child.time
+                    grouped_events[key].hits += child.hits
+                    grouped_events[key].childs.extend(child.childs)
+                    merge_events(child)
+
+        for event in self.root_lines:
+            merge_events(event)
+
+        # for id, event in self.events_index.items():
+        #     key = (event.file_name, event.function_name, event.line_no)
+        #     if key not in grouped_events:
+        #         grouped_events[key] = event
+        #     else:
+        #         grouped_events[key].time += event.time
+        #         grouped_events[key].hits += event.hits
+
+        self.events_index = {}
+        for key, event in grouped_events.items():
+            self.events_index[event.id] = event
+
+        self.save_events_index()
+
+    def _get_source_code(
+        self, file_name: str, line_no: Union[int, Literal["END_OF_FRAME"]]
+    ) -> str:
         """Get the source code for a specific line in a file."""
+        if line_no == "END_OF_FRAME":
+            return "END_OF_FRAME"
         if (file_name, line_no) in self.line_source:
             return self.line_source[(file_name, line_no)]
         try:
@@ -167,7 +218,7 @@ class LineStatsTree:
 
     def display_tree(
         self,
-        root_key: Optional[Tuple[LineKey, Tuple[LineKey, ...]]] = None,
+        root_key: Optional[int] = None,
         depth: int = 0,
         max_depth: int = 10,
         is_last: bool = True,
@@ -205,7 +256,9 @@ class LineStatsTree:
             assert line.time is not None
             return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time*1000:.2f}ms] - {truncated_source}"
 
-        def group_children_by_file(children):
+        def group_children_by_file(
+            children: List[LineStats],
+        ) -> Dict[str, List[LineStats]]:
             children_by_file = {}
             for child in children:
                 if child.file_name not in children_by_file:
@@ -218,7 +271,9 @@ class LineStatsTree:
 
             return children_by_file
 
-        def get_all_children(children_by_file):
+        def get_all_children(
+            children_by_file: Dict[str, List[LineStats]]
+        ) -> List[LineStats]:
             all_children = []
             for file_name in children_by_file:
                 all_children.extend(children_by_file[file_name])
@@ -244,7 +299,7 @@ class LineStatsTree:
             for i, child in enumerate(all_children):
                 is_last_child = i == len(all_children) - 1
                 self.display_tree(
-                    child.event_key, depth + 1, max_depth, is_last_child, next_prefix
+                    child.id, depth + 1, max_depth, is_last_child, next_prefix
                 )
         else:
             # Print all root trees
@@ -258,7 +313,7 @@ class LineStatsTree:
 
             # Sort roots by total time (descending)
             root_lines.sort(
-                key=lambda x: x.time if x.time is not None else 0, reverse=True
+                key=lambda x: x.line_no if x.line_no is not None else 0, reverse=False
             )
 
             # For each root, render as a separate tree
@@ -277,12 +332,8 @@ class LineStatsTree:
                 for j, child in enumerate(all_children):
                     is_last_child = j == len(all_children) - 1
                     self.display_tree(
-                        child.event_key, 1, max_depth, is_last_child, next_prefix
+                        child.id, 1, max_depth, is_last_child, next_prefix
                     )
-
-                # Add empty line between roots
-                if not is_last_root:
-                    print()
 
     def show_interactive(self, min_time_s: float = 0.1):
         """Display the tree in an interactive terminal interface."""

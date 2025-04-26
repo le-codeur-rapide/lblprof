@@ -1,3 +1,4 @@
+import asyncio
 import os
 import logging
 import sys
@@ -22,8 +23,14 @@ script_name = "chroma_vector_search.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 
+def main2():
+    time.sleep(1)
+
+
 def main():
     time.sleep(1)
+    main2()
+    return
 
 
 # run the tracer for a bit and return the tree
@@ -31,6 +38,18 @@ start_tracing()
 time.sleep(1)
 main()
 import pandas as pd  # noqa: E402,F401
+
+for i in range(2):
+    time.sleep(1)
+
+
+async def amain():
+    await asyncio.gather(asyncio.sleep(1), asyncio.sleep(1))
+    for i in range(2):
+        await asyncio.sleep(1)
+
+
+asyncio.run(amain())
 
 # Load and execute the example script
 # runpy.run_path(script_path, run_name="__main__")

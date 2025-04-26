@@ -39,6 +39,8 @@ class CodeMonitor:
         # more accurate
         self.overhead = 0
 
+        self.total_events = 0
+
     def _handle_call(self, code, instruction_offset):
         """Handle function call events"""
         start = time.perf_counter()
@@ -94,6 +96,7 @@ class CodeMonitor:
         # Add the line record to the tree
         logging.debug(f"tracing line: {file_name} {func_name} {line_no}")
         self.tree.add_line_event(
+            id=self.total_events,
             file_name=file_name,
             function_name=func_name,
             line_no=line_no,
@@ -101,6 +104,7 @@ class CodeMonitor:
             stack_trace=self.call_stack.copy(),
         )
         self.tempo_line_infos = (file_name, func_name, line_no)
+        self.total_events += 1
 
     def _handle_return(self, code, instruction_offset, retval):
         """Handle function return events"""
@@ -117,9 +121,10 @@ class CodeMonitor:
         logging.debug(f"Returning from {func_name} in {file_name} ({line_no})")
 
         self.tree.add_line_event(
+            id=self.total_events,
             file_name=file_name,
             function_name=func_name,
-            line_no=line_no + 999999,
+            line_no="END_OF_FRAME",
             start_time=now,
             stack_trace=self.call_stack.copy(),
         )
@@ -128,6 +133,8 @@ class CodeMonitor:
         # lines will have the correct parent
         if self.call_stack:
             self.call_stack.pop()
+
+        self.total_events += 1
 
     def start_tracing(self) -> None:
         # Reset state

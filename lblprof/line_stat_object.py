@@ -1,21 +1,24 @@
-from typing import List, Tuple, Optional, TypedDict
+from typing import List, Literal, Tuple, Optional, TypedDict, Union
 
 from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import PositiveInt
 
 
 class LineKey(BaseModel):
     file_name: str
     function_name: str
-    line_no: int
+    line_no: Union[int, Literal["END_OF_FRAME"]]
 
     class Config:
         frozen = True  # makes it immutable and hashable
 
 
 class LineEvent(TypedDict):
+    id: int
     file_name: str
     function_name: str
-    line_no: int
+    line_no: Union[int, Literal["END_OF_FRAME"]]
     start_time: float
     stack_trace: list[Tuple[str, str, int]]
 
@@ -25,12 +28,16 @@ class LineStats(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
+    id: int = Field(..., ge=0, description="Unique identifier for this line")
+
     # Key infos
     file_name: str = Field(..., min_length=1, description="File containing this line")
     function_name: str = Field(
         ..., min_length=1, description="Function containing this line"
     )
-    line_no: int = Field(..., ge=0, description="Line number in the source file")
+    line_no: Union[PositiveInt, Literal["END_OF_FRAME"]] = Field(
+        ..., description="Line number in the source file"
+    )
     stack_trace: List[Tuple[str, str, int]] = Field(
         default_factory=list, description="Stack trace for this line"
     )
@@ -40,8 +47,8 @@ class LineStats(BaseModel):
         ..., ge=0, description="Time when this line was first executed"
     )
     hits: int = Field(..., ge=0, description="Number of times this line was executed")
-    time: Optional[float] = Field(
-        ge=0, description="Time spent on this line in milliseconds", default=None
+    time: float = Field(
+        ge=0, description="Time spent on this line in milliseconds", default=0
     )
     avg_time: Optional[float] = Field(
         ge=0, description="Average time per hit in milliseconds", default=None
@@ -52,10 +59,15 @@ class LineStats(BaseModel):
 
     # Parent line that called this function
     # If None then it
-    parent: Optional[Tuple[LineKey, Tuple[LineKey, ...]]] = None
+    parent: Optional[int] = None
 
     # Children lines called by this line (populated during analysis)
     childs: List["LineStats"] = Field(default_factory=list)
+
+    @property
+    def event_id(self) -> int:
+        """Get the unique id for this line."""
+        return self.id
 
     @property
     def event_key(self) -> Tuple[LineKey, Tuple[LineKey, ...]]:
@@ -67,11 +79,7 @@ class LineStats(BaseModel):
                 line_no=self.line_no,
             ),
             tuple(
-                LineKey(
-                    file_name=key[0],
-                    function_name=key[1],
-                    line_no=key[2],
-                )
-                for key in self.stack_trace
+                LineKey(file_name=frame[0], function_name=frame[1], line_no=frame[2])
+                for frame in self.stack_trace
             ),
         )
