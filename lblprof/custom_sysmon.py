@@ -184,6 +184,7 @@ class CodeMonitor:
             or "/usr/local/lib" in filename
             or "site-packages" in filename
             or "dist-packages" in filename
+            or "/lib/python3.12/" in filename
             or "frozen" in filename
             or filename.startswith("<")
         ):
