@@ -14,8 +14,10 @@ if not hasattr(sys, "monitoring"):
 class CodeMonitor:
     """
     This class uses the sys.monitoring API (Python 3.12+) to register execution time for each line of code.
-    It will create a tree of the execution time for each line of code, keeping track of the frame (the function / module)
+    It will create a monitore the infos of the execution time for each line of code, keeping track of the frame (the function / module)
     that called it.
+    The goal of thsi class is to store the infos as fast as possible to have as few overhead as possible.  All the computation and storage is
+    done during the build_tree metho of the tree class
     """
 
     def __init__(self):
@@ -25,13 +27,10 @@ class CodeMonitor:
         # Call stack to store callers and keep track of the functions that called the current frame
         self.call_stack: List[Tuple[str, str, int]] = []
 
-        # Current line tracking
-        self.last_time: float = time.perf_counter()
-
-        # We use this to store the tree of line stats
+        # Data structure to store the infos, insert should be quick during tracing, compute should be delayed at build time
         self.tree = LineStatsTree()
 
-        # Use to store the line info until next line to be able to calculate the time of the line
+        # Use to store the line info until next line to keep track of who is the caller during call events
         self.tempo_line_infos = None
 
         # We use this to store the overhead of the monitoring tool and deduce it from the total time
@@ -39,6 +38,7 @@ class CodeMonitor:
         # more accurate
         self.overhead = 0
 
+        # Total number of events, used to generate unique ids for each line
         self.total_events = 0
 
     def _handle_call(self, code, instruction_offset):
@@ -46,9 +46,8 @@ class CodeMonitor:
         start = time.perf_counter()
         file_name = code.co_filename
 
-        # Skip if not user code
         if not self._is_user_code(file_name):
-            # deactivate monitoring for this function
+            # The call is from an imported module, we deactivate monitoring for this function
             sys.monitoring.set_local_events(self.tool_id, code, 0)
             self.overhead += time.perf_counter() - start
             return
@@ -72,13 +71,11 @@ class CodeMonitor:
         # get information about last parent that is from user code and not
         # from an imported / built in module
         if not self.tempo_line_infos:
-            # Here we are called by root, so no caller in the stack
+            # Here we are called by a root line, so no caller in the stack
             return
 
-        caller_file = self.tempo_line_infos[0]
-        caller_func = self.tempo_line_infos[1]
-        caller_line = self.tempo_line_infos[2]
-        caller_key = (caller_file, caller_func, caller_line)
+        # caller_key is a tuple of (caller_file, caller_func, caller_line_no)
+        caller_key = self.tempo_line_infos
 
         # Update call stack
         # Until we return from the function, all lines executed will have
@@ -100,7 +97,8 @@ class CodeMonitor:
             file_name=file_name,
             function_name=func_name,
             line_no=line_no,
-            start_time=now,
+            # We substract the overhead to simulate a raw run without tracing
+            start_time=now - self.overhead,
             stack_trace=self.call_stack.copy(),
         )
         self.tempo_line_infos = (file_name, func_name, line_no)
@@ -120,6 +118,8 @@ class CodeMonitor:
             return sys.monitoring.DISABLE
         logging.debug(f"Returning from {func_name} in {file_name} ({line_no})")
 
+        # Adding a END_OF_FRAME event to the tree to mark the end of the frame
+        # This is used to compute the duration of the last line of the frame
         self.tree.add_line_event(
             id=self.total_events,
             file_name=file_name,
@@ -128,6 +128,7 @@ class CodeMonitor:
             start_time=now,
             stack_trace=self.call_stack.copy(),
         )
+
         # A function is returning
         # We just need to pop the last line from the call stack so next
         # lines will have the correct parent
@@ -152,8 +153,9 @@ class CodeMonitor:
             self.tool_id, sys.monitoring.events.PY_RETURN, self._handle_return
         )
 
-        # 2 f_back to get out of the function call
+        # 2 f_back to get out of the "start_tracing" function stack and get the user code frame
         current_frame = sys._getframe().f_back.f_back
+
         # The idea is that we register for calls at global level to not miss future calls and we register
         # for lines at the current frame (take care of set_local so it can be removed)
         sys.monitoring.set_events(self.tool_id, sys.monitoring.events.PY_START)
@@ -168,6 +170,7 @@ class CodeMonitor:
         # Turn off monitoring for our tool
         sys.monitoring.set_events(self.tool_id, 0)
         current_frame = sys._getframe().f_back.f_back
+        # Note that we have to reset the local events for the current frame
         sys.monitoring.set_local_events(self.tool_id, current_frame.f_code, 0)
         sys.monitoring.free_tool_id(self.tool_id)
 

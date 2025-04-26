@@ -5,34 +5,20 @@ from lblprof.curses_ui import TerminalTreeUI
 from lblprof.line_stat_object import LineStats, LineKey, LineEvent
 
 
-def make_key(event: LineEvent) -> Tuple[LineKey, Tuple[LineKey, ...]]:
-    return (
-        LineKey(
-            file_name=event["file_name"],
-            function_name=event["function_name"],
-            line_no=event["line_no"],
-        ),
-        tuple(
-            LineKey(
-                file_name=key[0],
-                function_name=key[1],
-                line_no=key[2],
-            )
-            for key in event["stack_trace"]
-        ),
-    )
-
-
 class LineStatsTree:
     """A tree structure to manage LineStats objects with automatic parent-child time propagation."""
 
     def __init__(self):
+        # just raw event from custom_tracer
+        # Inserting in this list should be as fast as possible to avoid overhead
         self.raw_events_list: List[LineEvent] = []
+
+        # Index of events by id
         self.events_index: Dict[int, LineStats] = {}
-        # Track root nodes (entry points with no parents)
+
+        # Track root nodes (lines of user code initial frame)
         self.root_lines: List[LineStats] = []
-        # Total time for all tracked lines
-        self.total_time_ms: float = 0
+
         # cache of source code for lines
         # key is (file_name, line_no) for a source code line
         self.line_source: Dict[Tuple[str, int], str] = {}
@@ -47,12 +33,15 @@ class LineStatsTree:
         stack_trace: List[Tuple[str, str, int]],
     ) -> None:
         """Add a line event to the tree."""
+        # We don't want to add events from stop_tracing function
+        # We might want something cleaner ?
         if "stop_tracing" in function_name:
             return
 
         logging.debug(
             f"Adding line event: {file_name}::{function_name}::{line_no} at {start_time}::{stack_trace}"
         )
+
         self.raw_events_list.append(
             {
                 "id": id,
@@ -64,31 +53,17 @@ class LineStatsTree:
             }
         )
 
-    def save_events(self) -> None:
-        """Save the events to a file."""
-        with open("events.csv", "w") as f:
-            for event in self.raw_events_list:
-                f.write(
-                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']}\n"
-                )
-
-    def save_events_index(self) -> None:
-        """Save the events index to a file."""
-        with open("events_index.csv", "w") as f:
-            for key, event in self.events_index.items():
-                f.write(
-                    f"{event.id},{event.file_name.split('/')[-1]},{event.function_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.time},{len(event.childs)},{event.parent}\n"
-                )
-
     def build_tree(self) -> None:
-        """Build the tree from the raw events list."""
-        self.save_events()
-        for i, event in enumerate(self.raw_events_list):
+        """Build the tree (self.events_index) from the raw events list."""
+
+        # 1. Build the events index (id: LineStats)
+        for event in self.raw_events_list:
             source = self._get_source_code(event["file_name"], event["line_no"])
             if "stop_tracing" in source:
-                # This allow to delete the line from the tree
+                # This allow to delete the call to stop_tracing from the tree
                 # and set the end line for the root lines
                 event["line_no"] = "END_OF_FRAME"
+
             event_key = event["id"]
             if event_key not in self.events_index:
                 self.events_index[event_key] = LineStats(
@@ -103,16 +78,15 @@ class LineStatsTree:
                     source=source,
                 )
             else:
-                self.events_index[event_key].hits += 1
+                raise Exception("Event key already in self.events_index")
 
+        # 2. Establish parent-child relationships
         for id, event in self.events_index.items():
-            # establish parent-child relationships
-            node = self.events_index[id]
 
             # Get parent from stack trace
             if len(event.stack_trace) == 0:
                 # we are in a root line
-                self.root_lines.append(self.events_index[id])
+                self.root_lines.append(event)
                 continue
 
             # find id of parent_key in self.events_index
@@ -134,9 +108,9 @@ class LineStatsTree:
                     f"Parent key {event.stack_trace[-1]} not found in events index"
                 )
                 continue
-            self.events_index[parent_id].childs.append(node)
-            node.parent = parent_id
-            self.events_index[id] = node
+            self.events_index[parent_id].childs.append(event)
+            event.parent = parent_id
+            self.events_index[id] = event
 
         # update time line by line
         # key is id of parent line
@@ -197,7 +171,7 @@ class LineStatsTree:
             event.childs = [
                 child for child in event.childs if child.id in self.events_index
             ]
-        self.save_events_index()
+        self._save_events_index()
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
@@ -224,6 +198,11 @@ class LineStatsTree:
                 f"Error getting source code of line {line_no} in file {file_name}: {e}"
             )
 
+    # --------------------------------
+    # Display methods
+    # One method to print the tree in the console
+    # One method to display the tree in an interactive terminal interface
+    # --------------------------------
     def display_tree(
         self,
         root_key: Optional[int] = None,
@@ -383,3 +362,22 @@ class LineStatsTree:
         # Create and run the UI
         ui = TerminalTreeUI(get_tree_data, format_node)
         ui.run()
+
+    # --------------------------------
+    # Private methods
+    # --------------------------------
+    def _save_events(self) -> None:
+        """Save the events to a file."""
+        with open("events.csv", "w") as f:
+            for event in self.raw_events_list:
+                f.write(
+                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']}\n"
+                )
+
+    def _save_events_index(self) -> None:
+        """Save the events index to a file."""
+        with open("events_index.csv", "w") as f:
+            for key, event in self.events_index.items():
+                f.write(
+                    f"{event.id},{event.file_name.split('/')[-1]},{event.function_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.time},{len(event.childs)},{event.parent}\n"
+                )
