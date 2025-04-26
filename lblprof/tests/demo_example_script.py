@@ -57,5 +57,5 @@ asyncio.run(amain())
 stop_tracing()
 # print the tree
 show_tree()
-show_interactive_tree(min_time_s=0.1)
+show_interactive_tree(min_time_s=0.0)
 #

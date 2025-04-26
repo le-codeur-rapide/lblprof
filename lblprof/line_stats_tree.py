@@ -83,13 +83,13 @@ class LineStatsTree:
         # 2. Establish parent-child relationships
         for id, event in self.events_index.items():
 
-            # Get parent from stack trace
+            # We get parent from stack trace
             if len(event.stack_trace) == 0:
                 # we are in a root line
                 self.root_lines.append(event)
                 continue
 
-            # find id of parent_key in self.events_index
+            # find id of the parent in self.events_index
             parent_key = LineKey(
                 file_name=event.stack_trace[-1][0],
                 function_name=event.stack_trace[-1][1],
@@ -104,52 +104,49 @@ class LineStatsTree:
                 None,
             )
             if parent_id is None:
-                logging.warning(
+                raise Exception(
                     f"Parent key {event.stack_trace[-1]} not found in events index"
                 )
-                continue
+
             self.events_index[parent_id].childs.append(event)
             event.parent = parent_id
             self.events_index[id] = event
 
-        # update time line by line
-        # key is id of parent line
-        # It is none for root lines
+        # 3. Update duration of each line
+        # we use the time_save dict to store the id and start time of the previous line in the same frame (which is not necessary the previous line in the index)
         time_save: Dict[Union[int, None], Tuple[int, float]] = {}
         for id, event in self.events_index.items():
             if event.parent not in time_save:
-                logging.debug(
-                    f"Saving time for parent {event.parent} with id {event.id} and start time {event.start_time}"
-                )
-                time_save[event.parent] = (event.id, event.start_time)
+                # first line of the frame
+                time_save[event.parent] = (id, event.start_time)
                 continue
-            logging.debug(
-                f"Updating time for line {event.id} with parent {event.parent} and start time {event.start_time}"
-            )
+            # not the first line of the frame, update the time of the previous line
             previous_id, previous_start_time = time_save[event.parent]
             self.events_index[previous_id].time = event.start_time - previous_start_time
-            time_save[event.parent] = (event.id, event.start_time)
+            time_save[event.parent] = (id, event.start_time)
 
-        # remove END_OF_FRAME lines
+        # 4. Remove END_OF_FRAME lines
+        # The END_OF_FRAME lines are not needed in the tree anymore
         for id, event in list(self.events_index.items()):
             if event.line_no == "END_OF_FRAME":
                 parent_id = event.parent
                 if parent_id is not None:
                     self.events_index[parent_id].childs.remove(event)
                 del self.events_index[id]
-
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
-        # merge lines that have same file_name, function_name and line_no
+
+        # 5. Merge lines that have same file_name, function_name and line_no (to avoid duplicates in a for loop for example)
+        # Not it is important to start by root nodes and merge going down the tree (DFS pre-order)
         grouped_events = {}
 
         def _merge(event: LineStats):
+            """Merge events that have same file_name, function_name and line_no in the same frame."""
             key = (event.file_name, event.function_name, event.line_no)
             if key not in grouped_events:
                 grouped_events[key] = event
             else:
-                logging.debug(f"Merging event {event.id} with {grouped_events[key].id}")
                 grouped = grouped_events[key]
                 grouped.time += event.time
                 grouped.hits += event.hits
@@ -162,41 +159,19 @@ class LineStatsTree:
         for event in self.root_lines:
             _merge(event)
 
+        # 6. Update the events_index with the merged events
         self.events_index = {}
         for key, event in grouped_events.items():
             self.events_index[event.id] = event
 
-        # We have merged all nodes, but we need to update the childs attributes
+        # 7. Update the childs attributes to remove deleted childs
         for id, event in self.events_index.items():
             event.childs = [
                 child for child in event.childs if child.id in self.events_index
             ]
-        self._save_events_index()
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
-
-    def _get_source_code(
-        self, file_name: str, line_no: Union[int, Literal["END_OF_FRAME"]]
-    ) -> str:
-        """Get the source code for a specific line in a file."""
-        if line_no == "END_OF_FRAME":
-            return "END_OF_FRAME"
-        if (file_name, line_no) in self.line_source:
-            return self.line_source[(file_name, line_no)]
-        try:
-            with open(file_name, "r") as f:
-                lines = f.readlines()
-                if line_no - 1 < len(lines):
-                    source = lines[line_no - 1].strip()
-                    self.line_source[(file_name, line_no)] = source
-                    return source
-                else:
-                    return " "
-        except Exception as e:
-            return (
-                f"Error getting source code of line {line_no} in file {file_name}: {e}"
-            )
 
     # --------------------------------
     # Display methods
@@ -381,3 +356,25 @@ class LineStatsTree:
                 f.write(
                     f"{event.id},{event.file_name.split('/')[-1]},{event.function_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.time},{len(event.childs)},{event.parent}\n"
                 )
+
+    def _get_source_code(
+        self, file_name: str, line_no: Union[int, Literal["END_OF_FRAME"]]
+    ) -> str:
+        """Get the source code for a specific line in a file."""
+        if line_no == "END_OF_FRAME":
+            return "END_OF_FRAME"
+        if (file_name, line_no) in self.line_source:
+            return self.line_source[(file_name, line_no)]
+        try:
+            with open(file_name, "r") as f:
+                lines = f.readlines()
+                if line_no - 1 < len(lines):
+                    source = lines[line_no - 1].strip()
+                    self.line_source[(file_name, line_no)] = source
+                    return source
+                else:
+                    return " "
+        except Exception as e:
+            return (
+                f"Error getting source code of line {line_no} in file {file_name}: {e}"
+            )
