@@ -224,7 +224,7 @@ class LineStatsTree:
             return children_by_file
 
         def get_all_children(
-            children_by_file: Dict[str, List[LineStats]]
+            children_by_file: Dict[str, List[LineStats]],
         ) -> List[LineStats]:
             all_children = []
             for file_name in children_by_file:
