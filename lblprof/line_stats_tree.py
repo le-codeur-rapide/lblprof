@@ -74,7 +74,11 @@ class LineStatsTree:
 
     def save_events_index(self) -> None:
         """Save the events index to a file."""
-        pass
+        with open("events_index.csv", "w") as f:
+            for key, event in self.events_index.items():
+                f.write(
+                    f"{event.id},{event.file_name.split('/')[-1]},{event.function_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.time},{len(event.childs)},{event.parent}\n"
+                )
 
     def build_tree(self) -> None:
         """Build the tree from the raw events list."""
