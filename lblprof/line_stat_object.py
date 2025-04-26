@@ -1,6 +1,26 @@
-from typing import List, Tuple, Optional
+from typing import List, Literal, Tuple, Optional, TypedDict, Union
 
 from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import PositiveInt
+
+
+class LineKey(BaseModel):
+    file_name: str
+    function_name: str
+    line_no: Union[int, Literal["END_OF_FRAME"]]
+
+    # makes it immutable and hashable
+    model_config = ConfigDict(frozen=True)
+
+
+class LineEvent(TypedDict):
+    id: int
+    file_name: str
+    function_name: str
+    line_no: Union[int, Literal["END_OF_FRAME"]]
+    start_time: float
+    stack_trace: list[Tuple[str, str, int]]
 
 
 class LineStats(BaseModel):
@@ -8,46 +28,55 @@ class LineStats(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
+    id: int = Field(..., ge=0, description="Unique identifier for this line")
+
+    # Key infos
     file_name: str = Field(..., min_length=1, description="File containing this line")
     function_name: str = Field(
         ..., min_length=1, description="Function containing this line"
     )
-    line_no: int = Field(..., ge=0, description="Line number in the source file")
+    line_no: Union[PositiveInt, Literal["END_OF_FRAME"]] = Field(
+        ..., description="Line number in the source file"
+    )
+    stack_trace: List[Tuple[str, str, int]] = Field(
+        default_factory=list, description="Stack trace for this line"
+    )
+
+    # Stats
+    start_time: float = Field(
+        ..., ge=0, description="Time when this line was first executed"
+    )
     hits: int = Field(..., ge=0, description="Number of times this line was executed")
     time: float = Field(
-        ..., ge=0, description="Time spent on this line in milliseconds"
+        ge=0, description="Time spent on this line in milliseconds", default=0
     )
-    avg_time: float = Field(
-        ..., ge=0, description="Average time per hit in milliseconds"
-    )
+
+    # Source code
     source: str = Field(..., min_length=1, description="Source code for this line")
-    child_time: float = Field(
-        default=0.0, ge=0, description="Time spent in called lines"
-    )
 
     # Parent line that called this function
     # If None then it
-    parent_key: Optional[Tuple[str, str, int]] = None
+    parent: Optional[int] = None
 
     # Children lines called by this line (populated during analysis)
-    child_keys: List[Tuple[str, str, int]] = Field(default_factory=list)
+    childs: List["LineStats"] = Field(default_factory=list)
 
     @property
-    def key(self) -> Tuple[str, str, int]:
-        """Get the unique key for this line."""
-        return (self.file_name, self.function_name, self.line_no)
+    def event_id(self) -> int:
+        """Get the unique id for this line."""
+        return self.id
 
     @property
-    def extended_key(self) -> Tuple:
-        """Get an extended unique key that includes parent information."""
-        return (self.file_name, self.function_name, self.line_no, self.parent_key)
-
-    @property
-    def self_time(self) -> float:
-        """Get time spent on this line excluding child calls."""
-        return max(0.0, self.time - self.child_time)
-
-    @property
-    def total_time(self) -> float:
-        """Get total time including child calls."""
-        return self.time
+    def event_key(self) -> Tuple[LineKey, Tuple[LineKey, ...]]:
+        """Get the unique key for the event."""
+        return (
+            LineKey(
+                file_name=self.file_name,
+                function_name=self.function_name,
+                line_no=self.line_no,
+            ),
+            tuple(
+                LineKey(file_name=frame[0], function_name=frame[1], line_no=frame[2])
+                for frame in self.stack_trace
+            ),
+        )

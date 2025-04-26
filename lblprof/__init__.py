@@ -19,14 +19,15 @@ else:
     logging.warning("Python 3.12+ is required to use the sys.monitoring-based tracer.")
 
 
-def set_custom_trace() -> None:
+def start_tracing() -> None:
     """Start tracing code execution."""
     tracer.start_tracing()
 
 
-def stop_custom_trace() -> None:
+def stop_tracing() -> None:
     """Stop tracing code execution."""
     tracer.stop_tracing()
+    tracer.tree.build_tree()
 
 
 def show_tree() -> None:
@@ -35,6 +36,6 @@ def show_tree() -> None:
 
 
 # Add a module-level function to expose the interactive UI
-def show_interactive_tree(min_time_ms: int = 1):
+def show_interactive_tree(min_time_s: float = 0.1):
     """Display an interactive tree in the terminal."""
-    tracer.tree.show_interactive(min_time_ms=min_time_ms)
+    tracer.tree.show_interactive(min_time_s=min_time_s)

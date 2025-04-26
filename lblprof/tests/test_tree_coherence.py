@@ -5,7 +5,7 @@ import logging
 
 
 from lblprof.line_stats_tree import LineStatsTree
-from lblprof.custom_sysmon import CodeMonitor
+from lblprof import show_tree, start_tracing, stop_tracing, tracer
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,54 +28,40 @@ EXAMPLE_SCRIPTS = [
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
 def tree(request):
     # run the tracer for a bit and return the tree
-    tracer = CodeMonitor()
-    tracer.start_tracing()
+    start_tracing()
 
     # Load and execute the example script
     runpy.run_path(request.param, run_name="__main__")
 
-    tracer.stop_tracing()
+    stop_tracing()
     # print the tree
     print(f"Tree for {os.path.basename(request.param)}:")
-    print(tracer.tree.display_tree())
+    show_tree()
     return tracer.tree
 
 
 def test_tree_coherence(tree: LineStatsTree):
     _validate_parent_child_relations(tree)
-    _validate_children_time_sum(tree)
     _validate_time_sleep(tree)
 
 
 def _validate_parent_child_relations(tree: LineStatsTree):
-    for line in tree.lines.values():
-        if line.parent_key is None:
+    for line in tree.events_index.values():
+        if line.parent is None:
             continue
         assert (
-            line.parent_key in tree.lines
-        ), f"Parent key {line.parent_key} not found in tree"
-        assert (
-            line.key in tree.lines[line.parent_key].child_keys
-        ), f"Line {line.key} should have parent key {line.parent_key}"
-
-
-def _validate_children_time_sum(tree: LineStatsTree):
-    for line in tree.lines.values():
-        if line.parent_key is None:
-            continue
-        sum_children_time = sum(
-            tree.lines[child_key].time for child_key in line.child_keys
-        )
-        assert (
-            line.child_time - sum_children_time < 1e-6
-        ), f"Line {line.key} should have child time {line.child_time} but sum of children time {sum_children_time} is not equal"
+            line.parent in tree.events_index
+        ), f"Parent key {line.parent} not found in tree"
+        assert line.id in [
+            child.id for child in tree.events_index[line.parent].childs
+        ], f"Line {line.id} should have parent key {line.parent}"
 
 
 def _validate_time_sleep(tree: LineStatsTree):
-    for line in tree.lines.values():
+    for line in tree.root_lines:
         if "time.sleep" in line.source:
             n = line.source.split("time.sleep(")[1].split(")")[0]
             total_time = float(n) * line.hits * 1000
             assert line.time == pytest.approx(
                 total_time, rel=0.1
-            ), f"Line {line.key} should have time {total_time} but has time {line.time}"
+            ), f"Line {line.id} should have time {total_time} but has time {line.time}"

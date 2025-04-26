@@ -83,32 +83,33 @@ def simulate_feature_extraction(df):
 
 
 def main():
-    # start = time.time(1)
-    # exchange = fetch_exchange_rates()
-    # btc = fetch_bitcoin_prices()
-    # weather = fetch_weather_data()
+    start = time.time()
+    exchange = fetch_exchange_rates()
+    print(f"timeaaa = {time.time() - start}")
+    btc = fetch_bitcoin_prices()
+    weather = fetch_weather_data()
 
-    # df = exchange.join(btc).join(weather)
+    df = exchange.join(btc).join(weather)
 
-    # df = simulate_feature_extraction(df)
+    df = simulate_feature_extraction(df)
 
-    # df[["btc_usd", "EUR", "BRL", "temp_max"]] = df[
-    #     ["btc_usd", "EUR", "BRL", "temp_max"]
-    # ].apply(normalize_series)
+    df[["btc_usd", "EUR", "BRL", "temp_max"]] = df[
+        ["btc_usd", "EUR", "BRL", "temp_max"]
+    ].apply(normalize_series)
 
-    # print(df.head())
+    print(df.head())
 
-    # # Visualization
-    # df[["btc_usd", "EUR", "BRL", "temp_max", "interaction"]].plot(
-    #     figsize=(12, 6), title="Normalized Time Series Data with Interaction"
-    # )
+    # Visualization
+    df[["btc_usd", "EUR", "BRL", "temp_max", "interaction"]].plot(
+        figsize=(12, 6), title="Normalized Time Series Data with Interaction"
+    )
 
-    # end = time.time()
-    # print(f"\nTotal execution time: {end - start:.2f} seconds")
+    end = time.time()
+    print(f"\nTotal execution time: {end - start:.2f} seconds")
     return
 
 
 if __name__ == "__main__":
     main()
-    # stop_custom_trace()
+    # stop_tracing()
     # show_interactive_tree()
