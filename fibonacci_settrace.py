@@ -5,9 +5,9 @@ import time
 import logging
 
 from lblprof import (
-    set_custom_trace,
+    start_tracing,
     show_interactive_tree,
-    stop_custom_trace,
+    stop_tracing,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -90,7 +90,7 @@ def main2():
 
 # tracer = CodeMonitor()
 # tracer.start_tracing()
-set_custom_trace()
+start_tracing()
 
 main()
 main2()
@@ -99,7 +99,7 @@ time.sleep(1)  # Simulate some delay
 
 # print(time.time() - start)
 # time.sleep(2)
-stop_custom_trace()
+stop_tracing()
 # show_tree()
 # tracer.stop_tracing()
 

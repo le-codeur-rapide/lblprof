@@ -110,5 +110,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # stop_custom_trace()
+    # stop_tracing()
     # show_interactive_tree()

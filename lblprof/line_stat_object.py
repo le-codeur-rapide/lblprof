@@ -10,8 +10,8 @@ class LineKey(BaseModel):
     function_name: str
     line_no: Union[int, Literal["END_OF_FRAME"]]
 
-    class Config:
-        frozen = True  # makes it immutable and hashable
+    # makes it immutable and hashable
+    model_config = ConfigDict(frozen=True)
 
 
 class LineEvent(TypedDict):
@@ -50,9 +50,6 @@ class LineStats(BaseModel):
     time: float = Field(
         ge=0, description="Time spent on this line in milliseconds", default=0
     )
-    avg_time: Optional[float] = Field(
-        ge=0, description="Average time per hit in milliseconds", default=None
-    )
 
     # Source code
     source: str = Field(..., min_length=1, description="Source code for this line")
@@ -71,7 +68,7 @@ class LineStats(BaseModel):
 
     @property
     def event_key(self) -> Tuple[LineKey, Tuple[LineKey, ...]]:
-        """Get the unique key for this line."""
+        """Get the unique key for the event."""
         return (
             LineKey(
                 file_name=self.file_name,

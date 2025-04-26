@@ -74,7 +74,6 @@ class LineStatsTree:
                     stack_trace=event["stack_trace"],
                     start_time=event["start_time"],
                     hits=1,
-                    avg_time=0.0,
                     source=source,
                 )
             else:
@@ -186,16 +185,7 @@ class LineStatsTree:
         is_last: bool = True,
         prefix: str = "",
     ) -> None:
-        """Display a visual tree showing parent-child relationships between lines.
-
-        Args:
-            root_key: Optional[Tuple[LineKey, Tuple[LineKey, ...]]] - If provided, start from this line.
-                                                    If None, start from all root lines.
-            depth: int - Current recursion depth (for internal use).
-            max_depth: int - Maximum depth to display.
-            is_last: bool - Whether this node is the last child of its parent (for drawing)
-            prefix: str - The prefix string for the current line (for drawing)
-        """
+        """Display a visual tree showing parent-child relationships between lines."""
         if depth > max_depth:
             return  # Prevent infinite recursion
 
