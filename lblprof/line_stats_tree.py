@@ -170,33 +170,37 @@ class LineStatsTree:
         # merge lines that have same file_name, function_name and line_no
         grouped_events = {}
 
-        def merge_events(event: LineStats):
+        def _merge(event: LineStats):
+            key = (event.file_name, event.function_name, event.line_no)
+            if key not in grouped_events:
+                grouped_events[key] = event
+            else:
+                logging.debug(f"Merging event {event.id} with {grouped_events[key].id}")
+                grouped = grouped_events[key]
+                grouped.time += event.time
+                grouped.hits += event.hits
+                grouped.childs.extend(event.childs)
+
+            # Now recurse on the children
             for child in event.childs:
-                key = (child.file_name, child.function_name, child.line_no)
-                if key not in grouped_events:
-                    grouped_events[key] = child
-                else:
-                    grouped_events[key].time += child.time
-                    grouped_events[key].hits += child.hits
-                    grouped_events[key].childs.extend(child.childs)
-                    merge_events(child)
+                _merge(child)
 
         for event in self.root_lines:
-            merge_events(event)
-
-        # for id, event in self.events_index.items():
-        #     key = (event.file_name, event.function_name, event.line_no)
-        #     if key not in grouped_events:
-        #         grouped_events[key] = event
-        #     else:
-        #         grouped_events[key].time += event.time
-        #         grouped_events[key].hits += event.hits
+            _merge(event)
 
         self.events_index = {}
         for key, event in grouped_events.items():
             self.events_index[event.id] = event
 
+        # We have merged all nodes, but we need to update the childs attributes
+        for id, event in self.events_index.items():
+            event.childs = [
+                child for child in event.childs if child.id in self.events_index
+            ]
         self.save_events_index()
+        self.root_lines = [
+            line for line in self.events_index.values() if line.parent is None
+        ]
 
     def _get_source_code(
         self, file_name: str, line_no: Union[int, Literal["END_OF_FRAME"]]
@@ -284,8 +288,6 @@ class LineStatsTree:
             return all_children
 
         if root_key:
-            if root_key not in self.events_index:
-                return
 
             line = self.events_index[root_key]
             branch = branch_last if is_last else branch_mid

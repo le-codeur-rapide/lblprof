@@ -1,0 +1,14 @@
+0,demo_example_script.py,<module>,38,time.sleep(1),1,5021.206862742,1.0002570749993538,0,None
+1,demo_example_script.py,<module>,39,main(),1,5022.207119817,2.001975741000024,3,None
+2,demo_example_script.py,main,31,time.sleep(1),1,5022.207363817,1.0007218859991553,0,1
+3,demo_example_script.py,main,32,main2(),1,5023.208085703,1.0007079490005708,1,1
+4,demo_example_script.py,main2,27,time.sleep(1),1,5023.208317507,1.000279240999589,0,3
+6,demo_example_script.py,main,33,return,1,5024.208793652,0.0001491029997851001,0,1
+8,demo_example_script.py,<module>,40,import pandas as pd  # noqa: E402,F401,1,5024.209095558,0.30785051500060945,0,None
+9,demo_example_script.py,<module>,42,for i in range(2):,3,5024.516946073,0.0004621050002242555,0,None
+10,demo_example_script.py,<module>,43,time.sleep(1),2,5024.517064875,2.0016687859997546,0,None
+14,demo_example_script.py,<module>,46,async def amain():,1,5026.519076964,0.00014559999999619322,0,None
+15,demo_example_script.py,<module>,52,asyncio.run(amain()),1,5026.519222564,3.0063024869996298,3,None
+16,demo_example_script.py,amain,47,await asyncio.gather(asyncio.sleep(1), asyncio.sleep(1)),1,5026.519980664,1.0007325249998757,0,15
+17,demo_example_script.py,amain,48,for i in range(2):,3,5027.520713189,0.000435299999480776,0,15
+18,demo_example_script.py,amain,49,await asyncio.sleep(1),2,5027.520860389,2.003892061999977,0,15

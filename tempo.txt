@@ -1,0 +1,11 @@
+- demo_example_script.py:31 | <module> | hits: 1
+- demo_example_script.py:32 | <module> | hits: 1
+- demo_example_script.py:26 | main | hits: 1
+- demo_example_script.py:END_OF_FRAME | main | hits: 1
+- demo_example_script.py:33 | <module> | hits: 1
+- demo_example_script.py:34 | <module> | hits: 1
+- demo_example_script.py:35 | <module> | hits: 1
+- demo_example_script.py:34 | <module> | hits: 1
+- demo_example_script.py:35 | <module> | hits: 1
+- demo_example_script.py:34 | <module> | hits: 1
+- demo_example_script.py:END_OF_FRAME | <module> | hits: 1
