@@ -12,7 +12,7 @@ from lblprof import (
     show_interactive_tree,
 )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 path_example_folder = os.path.join(os.path.dirname(__file__), "example_scripts")
@@ -20,6 +20,7 @@ script_name = "data_computation.py"
 # script_name = "chroma_vector_search.py"
 # script_name = "fibonacci.py"
 # script_name = "import_pandas.py"
+script_name = "list_comprehension.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 

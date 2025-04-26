@@ -4,7 +4,6 @@ import time
 from typing import List, Tuple
 from .line_stats_tree import LineStatsTree
 
-logging.basicConfig(level=logging.DEBUG)
 
 # Check if sys.monitoring is available (Python 3.12+)
 if not hasattr(sys, "monitoring"):
