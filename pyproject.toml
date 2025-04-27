@@ -21,15 +21,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "matplotlib>=3.10.1",
     "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "virtualenv>=20.30.0",
-    "pandas>=2.0.3",
-    "chromadb>=0.5.23",
     "ruff>=0.3.0",
     "pytest>=7.0.0",
     "black>=24.2.0",
