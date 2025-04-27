@@ -20,7 +20,8 @@ script_name = "data_computation.py"
 # script_name = "chroma_vector_search.py"
 # script_name = "fibonacci.py"
 # script_name = "import_pandas.py"
-script_name = "list_comprehension.py"
+# script_name = "list_comprehension.py"
+script_name = "try_except.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 

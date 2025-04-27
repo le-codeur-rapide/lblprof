@@ -117,6 +117,19 @@ class CodeMonitor:
             return sys.monitoring.DISABLE
         logging.debug(f"Returning from {func_name} in {file_name} ({line_no})")
 
+        # In case the stop_tracing is called from a lower frame than start_tracing,
+        # we need to activate monitoring for the returned frame
+        current_frame = sys._getframe().f_back.f_back
+        if not sys.monitoring.get_tool(self.tool_id):
+            sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
+        sys.monitoring.set_local_events(
+            self.tool_id,
+            current_frame.f_code,
+            sys.monitoring.events.LINE
+            | sys.monitoring.events.PY_RETURN
+            | sys.monitoring.events.PY_START,
+        )
+
         # Adding a END_OF_FRAME event to the tree to mark the end of the frame
         # This is used to compute the duration of the last line of the frame
         self.tree.add_line_event(
@@ -168,10 +181,14 @@ class CodeMonitor:
     def stop_tracing(self) -> None:
         # Turn off monitoring for our tool
         sys.monitoring.set_events(self.tool_id, 0)
-        current_frame = sys._getframe().f_back.f_back
-        # Note that we have to reset the local events for the current frame
-        sys.monitoring.set_local_events(self.tool_id, current_frame.f_code, 0)
-        sys.monitoring.free_tool_id(self.tool_id)
+        current_frame = sys._getframe()
+        while current_frame:
+            if not sys.monitoring.get_tool(self.tool_id):
+                sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
+                sys.monitoring.set_events(self.tool_id, 0)
+            sys.monitoring.set_local_events(self.tool_id, current_frame.f_code, 0)
+            sys.monitoring.free_tool_id(self.tool_id)
+            current_frame = current_frame.f_back
 
     def _is_user_code(self, filename: str) -> bool:
         """Check if a file belongs to an installed module rather than user code.
