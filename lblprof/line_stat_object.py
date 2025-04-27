@@ -48,7 +48,7 @@ class LineStats(BaseModel):
     )
     hits: int = Field(..., ge=0, description="Number of times this line was executed")
     time: float = Field(
-        ge=0, description="Time spent on this line in milliseconds", default=0
+        description="Time spent on this line in milliseconds", default=0
     )
 
     # Source code
