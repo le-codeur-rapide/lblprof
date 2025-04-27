@@ -21,7 +21,7 @@ script_name = "data_computation.py"
 # script_name = "fibonacci.py"
 # script_name = "import_pandas.py"
 # script_name = "list_comprehension.py"
-script_name = "try_except.py"
+# script_name = "try_except.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 
@@ -47,5 +47,5 @@ runpy.run_path(script_path, run_name="__main__")
 stop_tracing()
 # print the tree
 show_tree()
-show_interactive_tree(min_time_s=0.0)
+show_interactive_tree(min_time_s=0.01)
 #
