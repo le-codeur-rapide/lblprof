@@ -19,6 +19,9 @@ Example of the terminal ui:
 pip install lblprof
 ```
 
+The only dependency of this package is pydantic, the rest is standard library.
+
+
 ## Usage
 
 This package contains 4 main functions:
@@ -32,7 +35,7 @@ from lblprof import start_tracing, stop_tracing, show_interactive_tree, show_tre
 
 start_tracing()
 
-# Your code here
+# Your code here (Any code)
 
 stop_tracing()
 show_tree() # print the tree to console
