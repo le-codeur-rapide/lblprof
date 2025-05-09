@@ -2,8 +2,6 @@ from typing import List, Literal, Tuple, Optional, TypedDict, Union
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from pydantic import PositiveInt
-
 
 class LineKey(BaseModel):
     file_name: str
@@ -35,7 +33,7 @@ class LineStats(BaseModel):
     function_name: str = Field(
         ..., min_length=1, description="Function containing this line"
     )
-    line_no: Union[PositiveInt, Literal["END_OF_FRAME"]] = Field(
+    line_no: Union[int, Literal["END_OF_FRAME"]] = Field(
         ..., description="Line number in the source file"
     )
     stack_trace: List[Tuple[str, str, int]] = Field(

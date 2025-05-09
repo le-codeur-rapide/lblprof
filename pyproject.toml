@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lblprof"
-version = "0.1.4"
+version = "0.1.5"
 description = "Line by line terminal based profiler"
 authors = [
-  { name="Paul", email="paul.pro@gmail.com" }
+  { name="le-codeur-rapide", email="paul.vezia@gmail.com" }
 
 
   
 ]
-readme = "README.md"
+readme = "Readme.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
 classifiers = [
