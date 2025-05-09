@@ -47,6 +47,8 @@ class CodeMonitor:
 
         if not self._is_user_code(file_name):
             # The call is from an imported module, we deactivate monitoring for this function
+            if not sys.monitoring.get_tool(self.tool_id):
+                sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
             sys.monitoring.set_local_events(self.tool_id, code, 0)
             self.overhead += time.perf_counter() - start
             return
@@ -54,6 +56,8 @@ class CodeMonitor:
         func_name = code.co_name
         line_no = code.co_firstlineno
         # We entered a frame from user code, we activate monitoring for it
+        if not sys.monitoring.get_tool(self.tool_id):
+            sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
         sys.monitoring.set_local_events(
             self.tool_id,
             code,
