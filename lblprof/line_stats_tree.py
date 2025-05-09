@@ -80,6 +80,10 @@ class LineStatsTree:
                 raise Exception("Event key already in self.events_index")
 
         # 2. Establish parent-child relationships
+        # We first build a dict to map event keys to event ids, so we can get the parent_id in O(1) time for each line
+        linekey_to_id = {
+            line.event_key[0]: event_id for event_id, line in self.events_index.items()
+        }
         for id, event in self.events_index.items():
 
             # We get parent from stack trace
@@ -94,20 +98,13 @@ class LineStatsTree:
                 function_name=event.stack_trace[-1][1],
                 line_no=event.stack_trace[-1][2],
             )
-            parent_id = next(
-                (
-                    key
-                    for key, line in self.events_index.items()
-                    if line.event_key[0] == parent_key
-                ),
-                None,
-            )
+            parent_id = linekey_to_id.get(parent_key)
             if parent_id is None:
                 raise Exception(
                     f"Parent key {event.stack_trace[-1]} not found in events index"
                 )
 
-            self.events_index[parent_id].childs.append(event)
+            self.events_index[parent_id].childs[id] = event
             event.parent = parent_id
             self.events_index[id] = event
 
@@ -130,7 +127,7 @@ class LineStatsTree:
             if event.line_no == "END_OF_FRAME":
                 parent_id = event.parent
                 if parent_id is not None:
-                    self.events_index[parent_id].childs.remove(event)
+                    del self.events_index[parent_id].childs[id]
                 del self.events_index[id]
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
@@ -149,10 +146,13 @@ class LineStatsTree:
                 grouped = grouped_events[key]
                 grouped.time += event.time
                 grouped.hits += event.hits
-                grouped.childs.extend(event.childs)
+                grouped.childs.update(event.childs)
+                # update parent of the new children
+                for child in event.childs.values():
+                    child.parent = grouped.id
 
             # Now recurse on the children
-            for child in event.childs:
+            for child in event.childs.values():
                 _merge(child)
 
         for event in self.root_lines:
@@ -165,9 +165,11 @@ class LineStatsTree:
 
         # 7. Update the childs attributes to remove deleted childs
         for id, event in self.events_index.items():
-            event.childs = [
-                child for child in event.childs if child.id in self.events_index
-            ]
+            event.childs = {
+                child.id: child
+                for child in event.childs.values()
+                if child.id in self.events_index
+            }
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
@@ -209,10 +211,10 @@ class LineStatsTree:
             return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time*1000:.2f}ms] - {truncated_source}"
 
         def group_children_by_file(
-            children: List[LineStats],
+            children: dict[int, LineStats],
         ) -> Dict[str, List[LineStats]]:
             children_by_file = {}
-            for child in children:
+            for child in children.values():
                 if child.file_name not in children_by_file:
                     children_by_file[child.file_name] = []
                 children_by_file[child.file_name].append(child)
@@ -302,7 +304,7 @@ class LineStatsTree:
                 # Return children of the specified node
                 return [
                     child
-                    for child in node_key.childs
+                    for child in node_key.childs.values()
                     if child.time and child.time >= min_time_s
                 ]
 

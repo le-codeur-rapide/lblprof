@@ -51,9 +51,9 @@ def _validate_parent_child_relations(tree: LineStatsTree):
             continue
         assert (
             line.parent in tree.events_index
-        ), f"Parent key {line.parent} not found in tree"
+        ), f"Parent key {line.parent} not found in tree: line {line}"
         assert line.id in [
-            child.id for child in tree.events_index[line.parent].childs
+            child.id for child in tree.events_index[line.parent].childs.values()
         ], f"Line {line.id} should have parent key {line.parent}"
 
 
