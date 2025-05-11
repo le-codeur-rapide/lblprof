@@ -57,7 +57,9 @@ class LineStats(BaseModel):
     parent: Optional[int] = None
 
     # Children lines called by this line (populated during analysis)
-    childs: List["LineStats"] = Field(default_factory=list)
+    # We use a dict because it alows us to remove some childs in O(1) time
+    # We need to remove children when we merge duplicated and when we remove END_OF_FRAME events
+    childs: dict[int, "LineStats"] = Field(default_factory=dict)
 
     @property
     def event_id(self) -> int:
