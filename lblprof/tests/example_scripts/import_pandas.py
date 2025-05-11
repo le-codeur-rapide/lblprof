@@ -2,7 +2,6 @@ import time
 
 
 def main():
-    time.sleep(1)
     start = time.perf_counter()
     import pandas as pd  # noqa: F401
 

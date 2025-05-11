@@ -6,10 +6,9 @@ import runpy
 
 sys.path.append(os.getcwd())
 from lblprof import (
+    show_interactive_tree,
     start_tracing,
     stop_tracing,
-    show_tree,
-    show_interactive_tree,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +18,7 @@ path_example_folder = os.path.join(os.path.dirname(__file__), "example_scripts")
 script_name = "data_computation.py"
 # script_name = "chroma_vector_search.py"
 # script_name = "fibonacci.py"
-# script_name = "import_pandas.py"
+script_name = "import_pandas.py"
 # script_name = "list_comprehension.py"
 # script_name = "try_except.py"
 script_path = os.path.join(path_example_folder, script_name)
@@ -35,6 +34,13 @@ def main():
     return
 
 
+# reset cache
+# start_time = time.perf_counter()
+# subprocess.run(["python", script_path])
+# end_time = time.perf_counter()
+# print(f"Time taken: {end_time - start_time} seconds")
+
+
 # run the tracer for a bit and return the tree
 start_tracing()
 # time.sleep(1)
@@ -42,10 +48,12 @@ start_tracing()
 # import pandas as pd  # noqa: E402,F401
 
 # Load and execute the example script
+start_time = time.perf_counter()
 runpy.run_path(script_path, run_name="__main__")
+end_time = time.perf_counter()
+print(f"Time taken: {end_time - start_time} seconds")
 
 stop_tracing()
 # print the tree
-show_tree()
+# show_tree()
 show_interactive_tree(min_time_s=0.01)
-#
