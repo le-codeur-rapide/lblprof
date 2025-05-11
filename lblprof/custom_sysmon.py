@@ -104,7 +104,9 @@ class CodeMonitor:
             start_time=now - self.overhead,
             stack_trace=self.call_stack.copy(),
         )
-        self.tempo_line_infos = (file_name, func_name, line_no)
+        if line_no not in ["END_OF_FRAME", 0]:
+            # In this case the line is not a real line of code so it can't be a parent to any other line
+            self.tempo_line_infos = (file_name, func_name, line_no)
         self.total_events += 1
 
     def _handle_return(self, code, instruction_offset, retval):
