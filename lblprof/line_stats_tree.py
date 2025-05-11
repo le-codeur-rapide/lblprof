@@ -81,8 +81,10 @@ class LineStatsTree:
 
         # 2. Establish parent-child relationships
         # We first build a dict to map event keys to event ids, so we can get the parent_id in O(1) time for each line
+        # we reverse the list because we always prefer that the parent of a line is the first event corresponding to the parent line
         linekey_to_id = {
-            line.event_key[0]: event_id for event_id, line in self.events_index.items()
+            line.event_key[0]: event_id
+            for event_id, line in reversed(list(self.events_index.items()))
         }
         for id, event in self.events_index.items():
 
@@ -118,6 +120,10 @@ class LineStatsTree:
                 continue
             # not the first line of the frame, update the time of the previous line
             previous_id, previous_start_time = time_save[event.parent]
+            if event.start_time - previous_start_time < 0:
+                logging.warning(
+                    f"Time of line {event.id} is negative: {event.start_time} - {previous_start_time}"
+                )
             self.events_index[previous_id].time = event.start_time - previous_start_time
             time_save[event.parent] = (id, event.start_time)
 
@@ -139,7 +145,12 @@ class LineStatsTree:
 
         def _merge(event: LineStats):
             """Merge events that have same file_name, function_name and line_no in the same frame."""
-            key = (event.file_name, event.function_name, event.line_no)
+            key = (
+                event.file_name,
+                event.function_name,
+                event.line_no,
+                tuple(event.stack_trace),
+            )
             if key not in grouped_events:
                 grouped_events[key] = event
             else:

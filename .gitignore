@@ -9,3 +9,4 @@ uv.lock
 *.csv
 *.json
 *.txt
+tests_examples/

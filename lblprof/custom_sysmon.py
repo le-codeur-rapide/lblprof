@@ -93,6 +93,11 @@ class CodeMonitor:
         func_name = code.co_name
         line_no = line_number
 
+        if not self._is_user_code(file_name):
+            # The line is from an imported module, we deactivate monitoring for this line
+            self.overhead += time.perf_counter() - now
+            return
+
         # Add the line record to the tree
         logging.debug(f"tracing line: {file_name} {func_name} {line_no}")
         self.tree.add_line_event(
@@ -143,7 +148,7 @@ class CodeMonitor:
             file_name=file_name,
             function_name=func_name,
             line_no="END_OF_FRAME",
-            start_time=now,
+            start_time=now - self.overhead,
             stack_trace=self.call_stack.copy(),
         )
 
