@@ -10,3 +10,4 @@ uv.lock
 *.json
 *.txt
 tests_examples/
+site/
