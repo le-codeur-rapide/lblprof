@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lblprof"
-version = "0.1.5"
+version = "0.1.7"
 description = "Line by line terminal based profiler"
 authors = [
   { name="le-codeur-rapide", email="paul.vezia@gmail.com" }

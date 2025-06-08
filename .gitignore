@@ -9,5 +9,6 @@ uv.lock
 *.csv
 *.json
 *.txt
+*.ipynb
 tests_examples/
 site/

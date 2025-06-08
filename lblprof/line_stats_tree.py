@@ -349,7 +349,7 @@ class LineStatsTree:
         with open("events.csv", "w") as f:
             for event in self.raw_events_list:
                 f.write(
-                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']}\n"
+                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']},{event['stack_trace']}\n"
                 )
 
     def _save_events_index(self) -> None:
