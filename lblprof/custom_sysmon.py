@@ -69,6 +69,8 @@ class CodeMonitor:
         logging.debug(
             f"handle call: filename: {file_name}, func_name: {func_name}, line_no: {line_no}"
         )
+        if "<genexpr>" in func_name:
+            return
         # We get info on who called the function
         # Using the tempo line infos instead of frame.f_back allows us to
         # get information about last parent that is from user code and not
@@ -83,6 +85,7 @@ class CodeMonitor:
         # Update call stack
         # Until we return from the function, all lines executed will have
         # the caller line as parent
+
         self.call_stack.append(caller_key)
 
     def _handle_line(self, code, line_number):
@@ -130,16 +133,18 @@ class CodeMonitor:
 
         # In case the stop_tracing is called from a lower frame than start_tracing,
         # we need to activate monitoring for the returned frame
-        current_frame = sys._getframe().f_back.f_back
+        current_frame = sys._getframe().f_back
         if not sys.monitoring.get_tool(self.tool_id):
             sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
-        sys.monitoring.set_local_events(
-            self.tool_id,
-            current_frame.f_code,
-            sys.monitoring.events.LINE
-            | sys.monitoring.events.PY_RETURN
-            | sys.monitoring.events.PY_START,
-        )
+        # We check if the returned frame already exists, if yes we activate monitoring for it
+        if current_frame and current_frame.f_back and current_frame.f_back.f_code:
+            sys.monitoring.set_local_events(
+                self.tool_id,
+                current_frame.f_code,
+                sys.monitoring.events.LINE
+                | sys.monitoring.events.PY_RETURN
+                | sys.monitoring.events.PY_START,
+            )
 
         # Adding a END_OF_FRAME event to the tree to mark the end of the frame
         # This is used to compute the duration of the last line of the frame
