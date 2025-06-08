@@ -168,7 +168,14 @@ class CodeMonitor:
     def start_tracing(self) -> None:
         # Reset state
         self.__init__()
-        sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
+        if not sys.monitoring.get_tool(self.tool_id):
+            sys.monitoring.use_tool_id(self.tool_id, "lblprof-monitor")
+        else:
+            # if the tool already assigned is not ours, we need to raise an error
+            if sys.monitoring.get_tool(self.tool_id) != "lblprof-monitor":
+                raise RuntimeError(
+                    "A tool with the id lblprof-monitor is already assigned, please stop it before starting a new tracing"
+                )
 
         # Register our callback functions
         sys.monitoring.register_callback(
