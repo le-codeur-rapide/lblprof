@@ -1,18 +1,15 @@
-from typing import List, Literal, Tuple, Optional, TypedDict, Union
+from typing import List, Literal, NamedTuple, Tuple, Optional, Union
 
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class LineKey(BaseModel):
+class LineKey(NamedTuple):
     file_name: str
     function_name: str
     line_no: Union[int, Literal["END_OF_FRAME"]]
 
-    # makes it immutable and hashable
-    model_config = ConfigDict(frozen=True)
 
-
-class LineEvent(TypedDict):
+class LineEvent(NamedTuple):
     id: int
     file_name: str
     function_name: str
