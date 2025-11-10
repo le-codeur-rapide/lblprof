@@ -1,6 +1,7 @@
 import logging
 import sys
 import time
+from types import CodeType
 from typing import List, Tuple
 from .line_stats_tree import LineStatsTree
 
@@ -30,7 +31,7 @@ class CodeMonitor:
         self.tree = LineStatsTree()
 
         # Use to store the line info until next line to keep track of who is the caller during call events
-        self.tempo_line_infos = None
+        self.tempo_line_infos: Tuple[str, str, int] | None = None
 
         # We use this to store the overhead of the monitoring tool and deduce it from the total time
         # The time of execution of the program will still be longer but at least the displayed time will be
@@ -40,7 +41,7 @@ class CodeMonitor:
         # Total number of events, used to generate unique ids for each line
         self.total_events = 0
 
-    def _handle_call(self, code, instruction_offset):
+    def _handle_call(self, code: CodeType, instruction_offset: int):
         """Handle function call events"""
         start = time.perf_counter()
         file_name = code.co_filename
@@ -88,7 +89,7 @@ class CodeMonitor:
 
         self.call_stack.append(caller_key)
 
-    def _handle_line(self, code, line_number):
+    def _handle_line(self, code: CodeType, line_number: int):
         """Handle line execution events"""
         now = time.perf_counter()
 
@@ -117,7 +118,7 @@ class CodeMonitor:
             self.tempo_line_infos = (file_name, func_name, line_no)
         self.total_events += 1
 
-    def _handle_return(self, code, instruction_offset, retval):
+    def _handle_return(self, code: CodeType, instruction_offset: int, retval: object):
         """Handle function return events"""
         now = time.perf_counter()
 
@@ -226,6 +227,7 @@ class CodeMonitor:
             or "/lib/python3.12/" in filename
             or "frozen" in filename
             or ".local/share" in filename
+            or "/.vscode-server/" in filename
             or filename.startswith("<")
         ):
             return False
