@@ -225,6 +225,7 @@ class CodeMonitor:
             or "dist-packages" in filename
             or "/lib/python3.12/" in filename
             or "frozen" in filename
+            or ".local/share" in filename
             or filename.startswith("<")
         ):
             return False
