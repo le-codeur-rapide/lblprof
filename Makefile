@@ -11,3 +11,6 @@ test:
 
 lint:
 	uv run ruff check . --fix
+
+benchmark:
+	uv run lblprof/benchmark/benchmark_overhead.py 
