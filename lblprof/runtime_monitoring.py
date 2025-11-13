@@ -2,9 +2,7 @@
 
 import importlib.abc
 import importlib.machinery
-import importlib.util
 import inspect
-import os
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -12,16 +10,11 @@ from typing import Optional, Sequence
 
 from lblprof.sys_mon_hooks import instrument_code_recursive, register_hooks
 
-ENV_VARIABLE_FLAG = "LBLPROF_FINEGRAINED"
 # Default dir to filter user code for instrumentation
 DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
 
 
 def start_profiling():
-    if os.environ.get(ENV_VARIABLE_FLAG) == "1":
-        return
-    os.environ[ENV_VARIABLE_FLAG] = "1"
-
     # 1. Register sys.monitoring hooks
     register_hooks()
 
@@ -31,25 +24,16 @@ def start_profiling():
     instrument_code_recursive(caller_code)
 
     # 3. Install import hook to instrument future imports
-    sys.meta_path.insert(0, WrapFinder())
+    sys.meta_path.insert(0, InstrumentationFinder())
 
     # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
-    for mod_name, mod in list(sys.modules.items()):
-        mod_spec = getattr(mod, "__spec__", None)
-        if mod_spec and mod_spec.origin:
-            mod_path = Path(mod_spec.origin)
-            if any(
-                filter_dir in str(mod_path)
-                for filter_dir in DEFAULT_FILTER_DIRS.split(os.pathsep)
-            ):
-                del sys.modules[mod_name]
 
 
 def stop_profiling():
     pass
 
 
-class WrapFinder(importlib.abc.MetaPathFinder):
+class InstrumentationFinder(importlib.abc.MetaPathFinder):
     def find_spec(
         self, name: str, path: Sequence[str] | None, target: Optional[ModuleType] = None
     ) -> Optional[importlib.machinery.ModuleSpec]:
@@ -85,21 +69,25 @@ class InstrumentLoader(importlib.abc.Loader):
             return
         else:
             print(f"Executing module {module.__name__} without instrumentation")
+            self.loader.exec_module(module)
         return
 
 
 def instrument_file(path: Path):
+    """Returned instrumented code corresponding to a python file"""
     code = compile(path.read_text(), str(path), "exec")
     instrument_code_recursive(code)
     return code
 
 
-def get_caller_file_path() -> Path:
-    """Get the file path of the caller of the function that called this function."""
-    # [2] because [0] is this function, [1] is the function that called this, and [2] is its caller
-    caller_info = inspect.stack()[2]
-    caller_file = Path(caller_info.filename).resolve()
-    return caller_file
+def clear_cache_modules(filters: list[Path]):
+    """Clear sys.module with all modules corresponding to the filters"""
+    for mod_name, mod in list(sys.modules.items()):
+        mod_spec = mod.__spec__
+        if mod_spec and mod_spec.origin:
+            mod_path = Path(mod_spec.origin)
+            if any(filter_dir.as_posix() in str(mod_path) for filter_dir in filters):
+                del sys.modules[mod_name]
 
 
 __all__ = ["start_profiling", "stop_profiling"]

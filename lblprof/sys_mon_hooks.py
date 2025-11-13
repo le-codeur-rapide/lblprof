@@ -11,16 +11,18 @@ EVENTS = (
 )
 
 
-
-def handle_start(code: CodeType, instruction_offset: int):
-    print(f"START in {code.co_name} at offset {instruction_offset}")
+def handle_call(code: CodeType, instruction_offset: int):
+    """Code to execute when a function is called"""
+    print(f"CALL in {code.co_name} at offset {instruction_offset}")
 
 
 def handle_line(code: CodeType, instruction_offset: int):
+    """Code to run when a line of code is executed"""
     print(f"LINE in {code.co_name}, at offset {instruction_offset}")
 
 
 def handle_return(code: CodeType, instruction_offset: int, retval: object):
+    """Code to run when a function is returned"""
     print(f"RETURN from {code.co_name} at offset {instruction_offset}")
 
 
@@ -30,7 +32,7 @@ def register_hooks(tool_id: int = TOOL_ID):
     if not sys.monitoring.get_tool(tool_id):
         sys.monitoring.use_tool_id(tool_id, PROFILER_NAME)
     sys.monitoring.register_callback(
-        tool_id, sys.monitoring.events.PY_START, handle_start
+        tool_id, sys.monitoring.events.PY_START, handle_call
     )
     sys.monitoring.register_callback(tool_id, sys.monitoring.events.LINE, handle_line)
     sys.monitoring.register_callback(
@@ -39,10 +41,8 @@ def register_hooks(tool_id: int = TOOL_ID):
 
 
 def instrument_code_recursive(code: CodeType):
-    print(f"Instrumenting code object: {code.co_name}")
-
+    """Activate monitoring for the code and all nested code objects"""
     sys.monitoring.set_local_events(TOOL_ID, code, EVENTS)
     for const in code.co_consts:
-        # print(const)
         if isinstance(const, CodeType):
             instrument_code_recursive(const)
