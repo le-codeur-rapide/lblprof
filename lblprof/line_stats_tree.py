@@ -87,7 +87,7 @@ class LineStatsTree:
                 logging.warning(
                     f"Time of line {event.id} is negative: {event.start_time} - {previous_start_time}"
                 )
-            self.events_index[previous_id].time = event.start_time - previous_start_time
+            self.events_index[previous_id].duration = event.start_time - previous_start_time
             time_save[event.parent] = (id, event.start_time)
 
         # 4. Remove END_OF_FRAME lines
