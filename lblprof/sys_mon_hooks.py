@@ -5,6 +5,7 @@ import time
 from types import CodeType
 
 from lblprof.line_stat_object import LineEvent, LineKey
+from lblprof.line_stats_tree import LineStatsTree
 
 
 TOOL_ID = sys.monitoring.PROFILER_ID
@@ -24,6 +25,7 @@ class CodeMonitor:
         self.events: list[LineEvent] = list()
         self.nb_events_recorded: int = 0
         self.tempo_line_infos: LineKey | None = None
+        self.tree: LineStatsTree = LineStatsTree([])
 
     def handle_call(self, code: CodeType, instruction_offset: int):
         """Code to execute when a function is called"""
@@ -91,6 +93,10 @@ class CodeMonitor:
     def stop_monitoring(self):
         sys.monitoring.free_tool_id(TOOL_ID)
         save_events_csv(self.events)
+
+    def build_tree(self):
+        self.tree = LineStatsTree(self.events)
+        self.tree.build_tree()
 
 
 def instrument_code_recursive(code: CodeType):

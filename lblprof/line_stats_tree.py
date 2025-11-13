@@ -3,7 +3,7 @@ import os
 from typing import List, Dict, Literal, Tuple, Optional, Union
 
 from lblprof.curses_ui import TerminalTreeUI
-from lblprof.line_stat_object import LineStats, LineKey, LineEvent
+from lblprof.line_stat_object import EventKeyT, LineStats, LineKey, LineEvent
 
 
 class LineStatsTree:
@@ -104,7 +104,7 @@ class LineStatsTree:
 
         # 5. Merge lines that have same file_name, function_name and line_no (to avoid duplicates in a for loop for example)
         # Note it is important to start by root nodes and merge going down the tree (DFS pre-order)
-        grouped_events: dict[Tuple[LineKey, Tuple[LineKey, ...]], LineStats] = {}
+        grouped_events: dict[EventKeyT, LineStats] = {}
 
         def _merge(event: LineStats):
             """Merge events that have same file_name, function_name and line_no in the same frame."""
@@ -263,6 +263,7 @@ class LineStatsTree:
         # Define the data provider
         # Given a node (a line), return its children
         def get_tree_data(node_key: Optional[LineStats] = None) -> List[LineStats]:
+            logging.debug(f"request for {node_key}")
             if node_key is None:
                 # Return root nodes
                 return [

@@ -1,7 +1,7 @@
 import curses
 from typing import Callable, List, Optional, TypedDict
 
-from lblprof.line_stat_object import LineStats
+from lblprof.line_stat_object import EventKeyT, LineStats
 
 
 class NodeTerminalUI(TypedDict):
@@ -36,7 +36,9 @@ class TerminalTreeUI:
         self.space = "    "
 
         # UI state
-        self.expanded_nodes = set()  # Keys of expanded nodes (instead of collapsed)
+        self.expanded_nodes: set[EventKeyT] = (
+            set()
+        )  # Keys of expanded nodes (instead of collapsed)
         self.current_pos = 0  # Current selected position
         self.scroll_offset = 0  # Vertical scroll offset
 
@@ -93,7 +95,7 @@ class TerminalTreeUI:
         children = self.tree_data_provider(parent)
 
         # Group children by file
-        children_by_file = {}
+        children_by_file: dict[str, list[LineStats]] = {}
         for child in children:
             if child.file_name not in children_by_file:
                 children_by_file[child.file_name] = []
@@ -104,20 +106,26 @@ class TerminalTreeUI:
             children_by_file[file_name].sort(key=lambda x: x.line_no)
 
         # Flatten all children
-        all_children = []
+        all_children: list[LineStats] = []
         for file_name in children_by_file:
             all_children.extend(children_by_file[file_name])
 
         return all_children
 
-    def _render_tree(self, stdscr, display_data: List[NodeTerminalUI], max_y, max_x):
+    def _render_tree(
+        self,
+        stdscr: curses.window,
+        display_data: List[NodeTerminalUI],
+        max_y: int,
+        max_x: int,
+    ):
         """Render the tree data on the screen."""
         # Limit display data to visible area
         visible_height = max_y - 4  # Account for header and help
 
         # Initialize screen position and map of rows that need spacing
         screen_y = 2  # Start after header
-        root_spacers = set()  # Track where to add blank lines
+        # root_spacers = set()  # Track where to add blank lines
 
         # Calculate visible range accounting for spacers
         visible_end = self.scroll_offset
@@ -127,16 +135,16 @@ class TerminalTreeUI:
                 break
             visible_end = i + 1
             visible_items += 1
-            if i + 1 in root_spacers:
-                visible_items += 1  # Count the spacer
+            # if i + 1 in root_spacers:
+            #     visible_items += 1  # Count the spacer
 
         # Render the visible portion
         rendered_pos = 0
         for i in range(self.scroll_offset, visible_end):
             # Add a blank line before root nodes (except the first one)
-            if i in root_spacers:
-                screen_y += 1
-                rendered_pos += 1
+            # if i in root_spacers:
+            #     screen_y += 1
+            #     rendered_pos += 1
 
             node = display_data[i]
 
@@ -175,7 +183,7 @@ class TerminalTreeUI:
             screen_y += 1
             rendered_pos += 1
 
-    def _get_prefix(self, node, display_data):
+    def _get_prefix(self, node: NodeTerminalUI, display_data: list[NodeTerminalUI]):
         """Generate the tree prefix for a node based on its position in the hierarchy."""
         prefix = ""
         if node["depth"] == 0:
@@ -194,7 +202,9 @@ class TerminalTreeUI:
 
         return prefix
 
-    def _check_if_last_ancestor(self, node, display_data, depth):
+    def _check_if_last_ancestor(
+        self, node: NodeTerminalUI, display_data: list[NodeTerminalUI], depth: int
+    ):
         """Check if the node has an ancestor at the given depth that is the last child."""
         # Find all nodes at this depth level
         nodes_at_depth = [n for n in display_data if n["depth"] == depth]
@@ -222,7 +232,7 @@ class TerminalTreeUI:
         """Run the terminal UI."""
         curses.wrapper(self._main_curses_loop)
 
-    def _main_curses_loop(self, stdscr):
+    def _main_curses_loop(self, stdscr: curses.window):
         """Main curses loop for displaying and interacting with the tree."""
         # Initialize curses
         stdscr.clear()

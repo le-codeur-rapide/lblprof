@@ -1,6 +1,6 @@
 import time
 import numpy as np  # noqa: F401
-from lblprof.runtime_monitoring import start_profiling, stop_profiling
+from lblprof.runtime_monitoring import start_profiling, stop_profiling, display_tui
 import logging
 from zzz2 import f3  # noqa: F401
 
@@ -32,3 +32,4 @@ f2()
 
 
 stop_profiling()
+display_tui()

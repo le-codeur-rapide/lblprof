@@ -9,12 +9,10 @@ import sys
 from types import ModuleType
 from typing import Optional, Sequence
 
-from lblprof.line_stats_tree import LineStatsTree
 from lblprof.sys_mon_hooks import instrument_code_recursive, CodeMonitor
 
 # Default dir to filter user code for instrumentation
 DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
-
 
 
 code_monitor = CodeMonitor()
@@ -38,8 +36,15 @@ def start_profiling():
 
 def stop_profiling():
     code_monitor.stop_monitoring()
-    tree = LineStatsTree(code_monitor.events)
-    tree.build_tree()
+    code_monitor.build_tree()
+
+
+def display_tui():
+    print(code_monitor.events)
+    code_monitor.build_tree()
+    print(code_monitor.tree.events_index)
+    print(code_monitor.tree.root_lines)
+    code_monitor.tree.show_interactive()
 
 
 class InstrumentationFinder(importlib.abc.MetaPathFinder):
@@ -103,4 +108,4 @@ def clear_cache_modules(filters: list[str]):
                 del sys.modules[mod_name]
 
 
-__all__ = ["start_profiling", "stop_profiling"]
+__all__ = ["start_profiling", "stop_profiling", "display_tui"]
