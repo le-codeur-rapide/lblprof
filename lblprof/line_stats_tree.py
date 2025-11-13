@@ -8,10 +8,10 @@ from lblprof.line_stat_object import LineStats, LineKey, LineEvent
 class LineStatsTree:
     """A tree structure to manage LineStats objects with automatic parent-child time propagation."""
 
-    def __init__(self):
+    def __init__(self, line_events: List[LineEvent]):
         # just raw event from custom_tracer
         # Inserting in this list should be as fast as possible to avoid overhead
-        self.raw_events_list: List[LineEvent] = []
+        self.raw_events_list: List[LineEvent] = line_events
 
         # Index of events by id
         self.events_index: Dict[int, LineStats] = {}
@@ -23,58 +23,22 @@ class LineStatsTree:
         # key is (file_name, line_no) for a source code line
         self.line_source: Dict[Tuple[str, int], str] = {}
 
-    def add_line_event(
-        self,
-        id: int,
-        file_name: str,
-        function_name: str,
-        line_no: Union[int, Literal["END_OF_FRAME"]],
-        start_time: float,
-        stack_trace: List[Tuple[str, str, int]],
-    ) -> None:
-        """Add a line event to the tree."""
-        # We don't want to add events from stop_tracing function
-        # We might want something cleaner ?
-        if "stop_tracing" in function_name:
-            return
-
-        logging.debug(
-            f"Adding line event: {file_name}::{function_name}::{line_no} at {start_time}::{stack_trace}"
-        )
-
-        self.raw_events_list.append(
-            {
-                "id": id,
-                "file_name": file_name,
-                "function_name": function_name,
-                "line_no": line_no,
-                "start_time": start_time,
-                "stack_trace": stack_trace,
-            }
-        )
-
     def build_tree(self) -> None:
         """Build the tree (self.events_index) from the raw events list."""
 
         # 1. Build the events index (id: LineStats)
         for event in self.raw_events_list:
-            source = self._get_source_code(event["file_name"], event["line_no"])
-            if "stop_tracing" in source:
-                # This allow to delete the call to stop_tracing from the tree
-                # and set the end line for the root lines
-                event["line_no"] = "END_OF_FRAME"
+            source = self._get_source_code(event.file_name, event.line_no)
 
-            event_key = event["id"]
+            event_key = event.id
             if event_key not in self.events_index:
                 self.events_index[event_key] = LineStats(
-                    id=event["id"],
-                    file_name=event["file_name"],
-                    function_name=event["function_name"],
-                    line_no=event["line_no"],
-                    stack_trace=event["stack_trace"],
-                    start_time=event["start_time"],
+                    **event.__dict__,
                     hits=1,
                     source=source,
+                    childs={},
+                    parent=None,
+                    duration=-1,
                 )
             else:
                 raise Exception("Event key already in self.events_index")
@@ -87,29 +51,28 @@ class LineStatsTree:
             for event_id, line in reversed(list(self.events_index.items()))
         }
         for id, event in self.events_index.items():
-
             # We get parent from stack trace
-            if len(event.stack_trace) == 0:
+            if len(event.call_stack) == 0:
                 # we are in a root line
                 self.root_lines.append(event)
                 continue
 
             # find id of the parent in self.events_index
             parent_key = LineKey(
-                file_name=event.stack_trace[-1][0],
-                function_name=event.stack_trace[-1][1],
-                line_no=event.stack_trace[-1][2],
+                file_name=event.call_stack[-1][0],
+                function_name=event.call_stack[-1][1],
+                line_no=event.call_stack[-1][2],
             )
             parent_id = linekey_to_id.get(parent_key)
             if parent_id is None:
                 raise Exception(
-                    f"Parent key {event.stack_trace[-1]} not found in events index"
+                    f"Parent key {event.call_stack[-1]} not found in events index"
                 )
 
             self.events_index[parent_id].childs[id] = event
             event.parent = parent_id
             self.events_index[id] = event
-
+        self._save_events_index()
         # 3. Update duration of each line
         # we use the time_save dict to store the id and start time of the previous line in the same frame (which is not necessary the previous line in the index)
         time_save: Dict[Union[int, None], Tuple[int, float]] = {}
@@ -219,7 +182,7 @@ class LineStatsTree:
 
             # Display line with time info and hits count
             assert line.time is not None
-            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time*1000:.2f}ms] - {truncated_source}"
+            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time * 1000:.2f}ms] - {truncated_source}"
 
         def group_children_by_file(
             children: dict[int, LineStats],
@@ -245,7 +208,6 @@ class LineStatsTree:
             return all_children
 
         if root_key:
-
             line = self.events_index[root_key]
             branch = branch_last if is_last else branch_mid
             print(format_line_info(line, branch))
@@ -357,7 +319,7 @@ class LineStatsTree:
         with open("events_index.csv", "w") as f:
             for key, event in self.events_index.items():
                 f.write(
-                    f"{event.id},{event.file_name.split('/')[-1]},{event.function_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.time},{len(event.childs)},{event.parent}\n"
+                    f"{event.id},{event.file_name.split('/')[-1]},{event.func_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.duration},{len(event.childs)},{event.parent}\n"
                 )
 
     def _get_source_code(

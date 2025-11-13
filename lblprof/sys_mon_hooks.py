@@ -3,9 +3,8 @@ import logging
 import sys
 import time
 from types import CodeType
-from typing import NamedTuple
 
-from lblprof.line_stat_object import LineKey
+from lblprof.line_stat_object import LineEvent, LineKey
 
 
 TOOL_ID = sys.monitoring.PROFILER_ID
@@ -17,15 +16,6 @@ EVENTS = (
 )
 
 
-class LineEvent(NamedTuple):
-    id: int
-    file_name: str
-    func_name: str
-    line_no: int
-    start_time: float
-    stack_trace: list[LineKey]
-
-
 class CodeMonitor:
     """Time and record sys.monitoring events"""
 
@@ -33,21 +23,21 @@ class CodeMonitor:
         self.stack: list[LineKey] = list()
         self.events: list[LineEvent] = list()
         self.nb_events_recorded: int = 0
+        self.tempo_line_infos: LineKey | None = None
 
     def handle_call(self, code: CodeType, instruction_offset: int):
         """Code to execute when a function is called"""
         logging.debug(f"CALL in {code.co_name} at offset {instruction_offset}")
-        self.stack.append(
-            LineKey(
-                file_name=code.co_filename,
-                function_name=code.co_name,
-                line_no=code.co_firstlineno,
-            )
-        )
+        if not self.tempo_line_infos:
+            # Here we are called by a root line, so no caller in the stack
+            return
+        caller_key = self.tempo_line_infos
+        self.stack.append(caller_key)
 
     def handle_line(self, code: CodeType, instruction_offset: int):
         """Code to run when a line of code is executed"""
         logging.debug(f"LINE in {code.co_name}, at offset {instruction_offset}")
+        logging.debug(f"stack is :{self.stack}")
         start = time.perf_counter()
         self.events.append(
             LineEvent(
@@ -55,9 +45,12 @@ class CodeMonitor:
                 file_name=code.co_filename,
                 func_name=code.co_name,
                 line_no=instruction_offset,
-                stack_trace=self.stack,
+                call_stack=self.stack.copy(),
                 start_time=start,
             )
+        )
+        self.tempo_line_infos = LineKey(
+            code.co_filename, code.co_name, instruction_offset
         )
         self.nb_events_recorded += 1
 
@@ -71,7 +64,7 @@ class CodeMonitor:
                 file_name=code.co_filename,
                 func_name=code.co_name,
                 line_no=instruction_offset,
-                stack_trace=self.stack,
+                call_stack=self.stack.copy(),
                 start_time=start,
             )
         )
@@ -125,7 +118,7 @@ def save_events_csv(events: list[LineEvent], path: str = "events.csv"):
                     ev.start_time,
                     ";".join(
                         f"{lk.file_name}:{lk.function_name}:{lk.line_no}"
-                        for lk in ev.stack_trace
+                        for lk in ev.call_stack
                     ),
                 ]
             )
