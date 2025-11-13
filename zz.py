@@ -1,6 +1,6 @@
 import time
 import numpy as np  # noqa: F401
-from lblprof.runtime_monitoring import start_profiling, stop_profiling, display_tui
+from lblprof import start_profiling, stop_profiling, show_interactive_tree
 import logging
 from zzz2 import f3  # noqa: F401
 
@@ -11,7 +11,7 @@ start_profiling()
 print("Profiling started.")
 
 # from lblprof.curses_ui import NodeTerminalUI  # noqa: F401
-from zzdict.zzz_submodule import f4
+from zzdict.zzz_submodule import f4  # noqa: E402
 
 
 def f1():
@@ -32,4 +32,4 @@ f2()
 
 
 stop_profiling()
-display_tui()
+show_interactive_tree()
