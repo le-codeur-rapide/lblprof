@@ -27,6 +27,7 @@ def start_profiling():
     sys.meta_path.insert(0, InstrumentationFinder())
 
     # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
+    clear_cache_modules([DEFAULT_FILTER_DIRS])
 
 
 def stop_profiling():
@@ -80,13 +81,13 @@ def instrument_file(path: Path):
     return code
 
 
-def clear_cache_modules(filters: list[Path]):
+def clear_cache_modules(filters: list[str]):
     """Clear sys.module with all modules corresponding to the filters"""
     for mod_name, mod in list(sys.modules.items()):
         mod_spec = mod.__spec__
         if mod_spec and mod_spec.origin:
             mod_path = Path(mod_spec.origin)
-            if any(filter_dir.as_posix() in str(mod_path) for filter_dir in filters):
+            if any(filter_dir in str(mod_path) for filter_dir in filters):
                 del sys.modules[mod_name]
 
 
