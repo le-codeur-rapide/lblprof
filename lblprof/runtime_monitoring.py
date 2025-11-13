@@ -13,29 +13,41 @@ from typing import Optional, Sequence
 from lblprof.sys_mon_hooks import instrument_code_recursive, register_hooks
 
 ENV_VARIABLE_FLAG = "LBLPROF_FINEGRAINED"
+# Default dir to filter user code for instrumentation
+DEFAULT_FILTER_DIRS = "/home/paul/lblprof/lblprof"
 
 
 def start_profiling():
     if os.environ.get(ENV_VARIABLE_FLAG) == "1":
         return
     os.environ[ENV_VARIABLE_FLAG] = "1"
-    caller_file = get_caller_file_path()
-    print(f"__file__ is {caller_file}")
-    # by default assume project root is two levels up from caller file
-    root_path = Path(caller_file).parent.parent.resolve()
-    entrypoint = Path(caller_file).resolve()
+
+    # 2. Find the *current* module (the one calling start_profiling)
+    frame = inspect.currentframe()
+    try:
+        caller_frame = frame.f_back  # the frame where start_profiling() was called
+        caller_code = caller_frame.f_code  # <module> code object of zzz.py
+    finally:
+        del frame  # avoid reference cycles
 
     register_hooks()
-    sys.meta_path.insert(0, WrapFinder(root_path))
-
-    # run entrypoint as __main__ (it will import modules on demand and they will be instrumented)
-    spec = importlib.util.spec_from_file_location("__main__", entrypoint)
-    assert spec and spec.loader
-    spec.loader = InstrumentLoader(spec.loader)
-    module = importlib.util.module_from_spec(spec)
-    module.__file__ = str(entrypoint)
-    sys.modules["__main__"] = module
-    spec.loader.exec_module(module)
+    instrument_code_recursive(caller_code)
+    sys.meta_path.insert(0, WrapFinder())
+    print("sys. modules keys containing lblprof:")
+    for mod_name in sys.modules.keys():
+        if "lblprof" in mod_name:
+            print(f" - {mod_name}")
+    # remove cached modules that are in DEFAULT_FILTER_DIRS
+    for mod_name, mod in list(sys.modules.items()):
+        mod_spec = getattr(mod, "__spec__", None)
+        if mod_spec and mod_spec.origin:
+            mod_path = Path(mod_spec.origin)
+            if any(
+                filter_dir in str(mod_path)
+                for filter_dir in DEFAULT_FILTER_DIRS.split(os.pathsep)
+            ):
+                print(f"Removing cached module {mod_name} from sys.modules")
+                del sys.modules[mod_name]
 
 
 def stop_profiling():
@@ -43,9 +55,6 @@ def stop_profiling():
 
 
 class WrapFinder(importlib.abc.MetaPathFinder):
-    def __init__(self, root: Path):
-        self.root = root.resolve()
-
     def find_spec(
         self, name: str, path: Sequence[str] | None, target: Optional[ModuleType] = None
     ) -> Optional[importlib.machinery.ModuleSpec]:
@@ -81,6 +90,8 @@ class InstrumentLoader(importlib.abc.Loader):
             code = instrument_file(file_path)
             exec(code, module.__dict__)
             return
+        else:
+            print(f"Executing module {module.__name__} without instrumentation")
         return
 
 
