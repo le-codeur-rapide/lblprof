@@ -11,9 +11,6 @@ EVENTS = (
 )
 
 
-def handle_call(code: CodeType, instruction_offset: int):
-    print(f"CALL to {code.co_name} at offset {instruction_offset}")
-
 
 def handle_start(code: CodeType, instruction_offset: int):
     print(f"START in {code.co_name} at offset {instruction_offset}")
@@ -28,16 +25,16 @@ def handle_return(code: CodeType, instruction_offset: int, retval: object):
 
 
 def register_hooks(tool_id: int = TOOL_ID):
+    """Create sys monitoring tool and add the different handlers"""
     # register tool callbacks if not already registered
-    if not sys.monitoring.get_tool(TOOL_ID):
-        sys.monitoring.use_tool_id(TOOL_ID, PROFILER_NAME)
-    # optional: register handlers (uncomment if needed)
+    if not sys.monitoring.get_tool(tool_id):
+        sys.monitoring.use_tool_id(tool_id, PROFILER_NAME)
     sys.monitoring.register_callback(
-        TOOL_ID, sys.monitoring.events.PY_START, handle_start
+        tool_id, sys.monitoring.events.PY_START, handle_start
     )
-    sys.monitoring.register_callback(TOOL_ID, sys.monitoring.events.LINE, handle_line)
+    sys.monitoring.register_callback(tool_id, sys.monitoring.events.LINE, handle_line)
     sys.monitoring.register_callback(
-        TOOL_ID, sys.monitoring.events.PY_RETURN, handle_return
+        tool_id, sys.monitoring.events.PY_RETURN, handle_return
     )
 
 
