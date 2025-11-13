@@ -63,7 +63,7 @@ class CodeMonitor:
                 id=self.nb_events_recorded,
                 file_name=code.co_filename,
                 func_name=code.co_name,
-                line_no=instruction_offset,
+                line_no="END_OF_FRAME",
                 call_stack=self.stack.copy(),
                 start_time=start,
             )

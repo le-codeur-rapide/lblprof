@@ -1,11 +1,11 @@
-from typing import Literal, NamedTuple, Optional, Tuple, Union
+from typing import Literal, NamedTuple, Optional, Tuple
 from dataclasses import dataclass
 
 
 class LineKey(NamedTuple):
     file_name: str
     function_name: str
-    line_no: Union[int, Literal["END_OF_FRAME"]]
+    line_no: int | Literal["END_OF_FRAME"]
 
 
 @dataclass
@@ -13,7 +13,7 @@ class LineEvent:
     id: int
     file_name: str
     func_name: str
-    line_no: int
+    line_no: int | Literal["END_OF_FRAME"]
     start_time: float
     call_stack: list[LineKey]
 
@@ -28,7 +28,7 @@ class LineStats(LineEvent):
     source: str
     childs: dict[int, "LineStats"]
     parent: Optional[int]
-    duration: float
+    duration: Optional[float]
 
     @property
     def event_key(self) -> Tuple[LineKey, Tuple[LineKey, ...]]:

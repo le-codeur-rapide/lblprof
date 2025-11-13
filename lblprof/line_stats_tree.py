@@ -38,7 +38,7 @@ class LineStatsTree:
                     source=source,
                     childs={},
                     parent=None,
-                    duration=-1,
+                    duration=None,
                 )
             else:
                 raise Exception("Event key already in self.events_index")
@@ -53,8 +53,6 @@ class LineStatsTree:
         for id, event in self.events_index.items():
             # We get parent from stack trace
             if len(event.call_stack) == 0:
-                # we are in a root line
-                self.root_lines.append(event)
                 continue
 
             # find id of the parent in self.events_index
@@ -72,7 +70,6 @@ class LineStatsTree:
             self.events_index[parent_id].childs[id] = event
             event.parent = parent_id
             self.events_index[id] = event
-        self._save_events_index()
         # 3. Update duration of each line
         # we use the time_save dict to store the id and start time of the previous line in the same frame (which is not necessary the previous line in the index)
         time_save: Dict[Union[int, None], Tuple[int, float]] = {}
@@ -102,6 +99,7 @@ class LineStatsTree:
             line for line in self.events_index.values() if line.parent is None
         ]
 
+        self._save_events_index()
         # 5. Merge lines that have same file_name, function_name and line_no (to avoid duplicates in a for loop for example)
         # Not it is important to start by root nodes and merge going down the tree (DFS pre-order)
         grouped_events = {}

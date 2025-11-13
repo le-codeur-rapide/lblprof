@@ -3,6 +3,7 @@
 import importlib.abc
 import importlib.machinery
 import inspect
+import logging
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -13,6 +14,7 @@ from lblprof.sys_mon_hooks import instrument_code_recursive, CodeMonitor
 
 # Default dir to filter user code for instrumentation
 DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
+
 
 
 code_monitor = CodeMonitor()
@@ -90,11 +92,14 @@ def instrument_file(path: Path):
 def clear_cache_modules(filters: list[str]):
     """Clear sys.module with all modules corresponding to the filters"""
     for mod_name, mod in list(sys.modules.items()):
+        if "zz" in mod_name:
+            logging.debug(f"considering {mod_name}")
         # Built in modules
         mod_spec = getattr(mod, "__spec__", None)
         if mod_spec and mod_spec.origin:
             mod_path = Path(mod_spec.origin)
             if any(filter_dir in str(mod_path) for filter_dir in filters):
+                logging.debug(f" removing {mod_name}")
                 del sys.modules[mod_name]
 
 

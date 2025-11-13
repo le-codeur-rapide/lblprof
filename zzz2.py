@@ -1,3 +1,5 @@
+import time
+
+
 def f3():
-    # time.sleep(0.2)
-    pass
+    time.sleep(0.2)
