@@ -2,12 +2,13 @@ import numpy as np  # noqa: F401
 from lblprof.runtime_monitoring import start_profiling
 from zzz2 import f3  # noqa: F401
 
+
 print("Starting profiling...")
 start_profiling()
 print("Profiling started.")
 
 from lblprof.curses_ui import NodeTerminalUI  # noqa: F401
-from zzdict import zzz  # noqa: F401
+# from zzdict import zzz  # noqa: F401
 
 
 def f1():

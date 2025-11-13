@@ -14,7 +14,7 @@ from lblprof.sys_mon_hooks import instrument_code_recursive, register_hooks
 
 ENV_VARIABLE_FLAG = "LBLPROF_FINEGRAINED"
 # Default dir to filter user code for instrumentation
-DEFAULT_FILTER_DIRS = "/home/paul/lblprof/lblprof"
+DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
 
 
 def start_profiling():
@@ -22,22 +22,18 @@ def start_profiling():
         return
     os.environ[ENV_VARIABLE_FLAG] = "1"
 
-    # 2. Find the *current* module (the one calling start_profiling)
-    frame = inspect.currentframe()
-    try:
-        caller_frame = frame.f_back  # the frame where start_profiling() was called
-        caller_code = caller_frame.f_code  # <module> code object of zzz.py
-    finally:
-        del frame  # avoid reference cycles
-
+    # 1. Register sys.monitoring hooks
     register_hooks()
+
+    # 2. Find the *current* module (the one calling start_profiling)
+    caller_frame = inspect.stack()[1]
+    caller_code = caller_frame.frame.f_code
     instrument_code_recursive(caller_code)
+
+    # 3. Install import hook to instrument future imports
     sys.meta_path.insert(0, WrapFinder())
-    print("sys. modules keys containing lblprof:")
-    for mod_name in sys.modules.keys():
-        if "lblprof" in mod_name:
-            print(f" - {mod_name}")
-    # remove cached modules that are in DEFAULT_FILTER_DIRS
+
+    # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
     for mod_name, mod in list(sys.modules.items()):
         mod_spec = getattr(mod, "__spec__", None)
         if mod_spec and mod_spec.origin:
@@ -46,7 +42,6 @@ def start_profiling():
                 filter_dir in str(mod_path)
                 for filter_dir in DEFAULT_FILTER_DIRS.split(os.pathsep)
             ):
-                print(f"Removing cached module {mod_name} from sys.modules")
                 del sys.modules[mod_name]
 
 
@@ -62,7 +57,6 @@ class WrapFinder(importlib.abc.MetaPathFinder):
         if not spec or not spec.origin or not spec.loader:
             return None
         if "/lib" not in spec.origin:
-            print(f"WrapFinder: found spec {spec} for module {name}")
             spec.loader = InstrumentLoader(spec.loader)
             return spec
         return None
@@ -78,7 +72,6 @@ class InstrumentLoader(importlib.abc.Loader):
         return self.loader.create_module(spec)
 
     def exec_module(self, module: ModuleType) -> None:
-        print(f"module is {module.__dict__}")
         module_spec = module.__spec__
         if not module_spec:
             return
@@ -96,7 +89,6 @@ class InstrumentLoader(importlib.abc.Loader):
 
 
 def instrument_file(path: Path):
-    print(f"Instrumenting file: {path}")
     code = compile(path.read_text(), str(path), "exec")
     instrument_code_recursive(code)
     return code
