@@ -38,7 +38,7 @@ class LineStatsTree:
                     source=source,
                     childs={},
                     parent=None,
-                    duration=None,
+                    duration=0,
                 )
             else:
                 raise Exception("Event key already in self.events_index")
@@ -99,24 +99,24 @@ class LineStatsTree:
             line for line in self.events_index.values() if line.parent is None
         ]
 
-        self._save_events_index()
         # 5. Merge lines that have same file_name, function_name and line_no (to avoid duplicates in a for loop for example)
-        # Not it is important to start by root nodes and merge going down the tree (DFS pre-order)
-        grouped_events = {}
+        # Note it is important to start by root nodes and merge going down the tree (DFS pre-order)
+        grouped_events: dict[Tuple[LineKey, Tuple[LineKey, ...]], LineStats] = {}
 
         def _merge(event: LineStats):
             """Merge events that have same file_name, function_name and line_no in the same frame."""
             key = (
+                LineKey(
                 event.file_name,
-                event.function_name,
-                event.line_no,
-                tuple(event.stack_trace),
+                event.func_name,
+                event.line_no),
+                tuple(event.call_stack),
             )
             if key not in grouped_events:
                 grouped_events[key] = event
             else:
                 grouped = grouped_events[key]
-                grouped.time += event.time
+                grouped.duration += event.duration
                 grouped.hits += event.hits
                 grouped.childs.update(event.childs)
                 # update parent of the new children
@@ -132,7 +132,7 @@ class LineStatsTree:
 
         # 6. Update the events_index with the merged events
         self.events_index = {}
-        for key, event in grouped_events.items():
+        for _, event in grouped_events.items():
             self.events_index[event.id] = event
 
         # 7. Update the childs attributes to remove deleted childs
@@ -145,6 +145,7 @@ class LineStatsTree:
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
+        self._save_events_index()
 
     # --------------------------------
     # Display methods

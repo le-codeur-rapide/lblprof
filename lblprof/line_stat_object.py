@@ -28,7 +28,7 @@ class LineStats(LineEvent):
     source: str
     childs: dict[int, "LineStats"]
     parent: Optional[int]
-    duration: Optional[float]
+    duration: float
 
     @property
     def event_key(self) -> Tuple[LineKey, Tuple[LineKey, ...]]:
