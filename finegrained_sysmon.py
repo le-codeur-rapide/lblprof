@@ -1,4 +1,6 @@
 import importlib.machinery
+import inspect
+import os
 from pathlib import Path
 import sys
 from types import CodeType, ModuleType
@@ -118,6 +120,22 @@ def main(root_path: str, entrypoint_path: str):
     module.__file__ = str(entrypoint)
     sys.modules["__main__"] = module
     spec.loader.exec_module(module)
+
+
+def instrument_start():
+    if os.environ.get("LBLPROF_FINEGRAINED") == "1":
+        print("Starting fine-grained monitoring...")
+        return
+    caller_info = inspect.stack()[1]
+    caller_file = Path(caller_info.filename).resolve()
+    # caller_file = Path(sys._getframe(1).f_code.co_filename).resolve()
+    os.environ["LBLPROF_FINEGRAINED"] = "1"
+    print(f"__file__ is {caller_file}")
+    root_path = Path(caller_file).parent.parent.resolve()
+    entrypoint = Path(caller_file).resolve()
+    # from finegrained_sysmon import main
+
+    main(str(root_path), str(entrypoint))
 
 
 if __name__ == "__main__":
