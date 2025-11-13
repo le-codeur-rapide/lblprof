@@ -8,15 +8,18 @@ import sys
 from types import ModuleType
 from typing import Optional, Sequence
 
-from lblprof.sys_mon_hooks import instrument_code_recursive, register_hooks
+from lblprof.sys_mon_hooks import instrument_code_recursive, CodeMonitor
 
 # Default dir to filter user code for instrumentation
 DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
 
 
+code_monitor = CodeMonitor()
+
+
 def start_profiling():
     # 1. Register sys.monitoring hooks
-    register_hooks()
+    code_monitor.register_hooks()
 
     # 2. Find the *current* module (the one calling start_profiling)
     caller_frame = inspect.stack()[1]
@@ -31,7 +34,7 @@ def start_profiling():
 
 
 def stop_profiling():
-    pass
+    code_monitor.stop_monitoring()
 
 
 class InstrumentationFinder(importlib.abc.MetaPathFinder):
@@ -84,7 +87,8 @@ def instrument_file(path: Path):
 def clear_cache_modules(filters: list[str]):
     """Clear sys.module with all modules corresponding to the filters"""
     for mod_name, mod in list(sys.modules.items()):
-        mod_spec = mod.__spec__
+        # Built in modules
+        mod_spec = getattr(mod, "__spec__", None)
         if mod_spec and mod_spec.origin:
             mod_path = Path(mod_spec.origin)
             if any(filter_dir in str(mod_path) for filter_dir in filters):

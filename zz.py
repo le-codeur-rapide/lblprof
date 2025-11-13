@@ -1,5 +1,5 @@
 import numpy as np  # noqa: F401
-from lblprof.runtime_monitoring import start_profiling
+from lblprof.runtime_monitoring import start_profiling, stop_profiling
 from zzz2 import f3  # noqa: F401
 
 
@@ -24,3 +24,6 @@ def f2():
 
 
 f2()
+
+
+stop_profiling()
