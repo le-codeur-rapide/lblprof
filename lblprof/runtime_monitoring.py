@@ -2,33 +2,16 @@
 
 import importlib.abc
 import importlib.machinery
-import inspect
 import logging
 from pathlib import Path
 import sys
 from types import ModuleType
 from typing import Optional, Sequence
 
-from lblprof.sys_monitoring import instrument_code_recursive, CodeMonitor
+from lblprof.sys_monitoring import instrument_code_recursive
 
 # Default dir to filter user code for instrumentation
 DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
-
-
-def start_profiling_(code_monitor: CodeMonitor):
-    # 1. Register sys.monitoring hooks
-    code_monitor.register_hooks()
-
-    # 2. Find the *current* module (the one calling start_profiling)
-    caller_frame = inspect.stack()[1]
-    caller_code = caller_frame.frame.f_code
-    instrument_code_recursive(caller_code)
-
-    # 3. Install import hook to instrument future imports
-    sys.meta_path.insert(0, InstrumentationFinder())
-
-    # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
-    clear_cache_modules([DEFAULT_FILTER_DIRS])
 
 
 class InstrumentationFinder(importlib.abc.MetaPathFinder):

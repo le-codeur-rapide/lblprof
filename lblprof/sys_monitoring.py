@@ -97,6 +97,8 @@ class CodeMonitor:
     def build_tree(self):
         self.tree = LineStatsTree(self.events)
         self.tree.build_tree()
+        print(self.tree.root_lines)
+        print(self.tree.raw_events_list)
 
 
 def instrument_code_recursive(code: CodeType):

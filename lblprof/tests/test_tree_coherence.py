@@ -5,7 +5,7 @@ import logging
 
 
 from lblprof.line_stats_tree import LineStatsTree
-from lblprof import show_tree, start_tracing, stop_tracing, tracer
+from lblprof import show_tree, start_profiling, stop_profiling, tracer
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,12 +28,12 @@ EXAMPLE_SCRIPTS = [
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
 def tree(request):
     # run the tracer for a bit and return the tree
-    start_tracing()
+    start_profiling()
 
     # Load and execute the example script
     runpy.run_path(request.param, run_name="__main__")
 
-    stop_tracing()
+    stop_profiling()
     # print the tree
     print(f"Tree for {os.path.basename(request.param)}:")
     show_tree()
