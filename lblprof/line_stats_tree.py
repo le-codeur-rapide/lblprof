@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import List, Dict, Literal, Tuple, Optional, Union
+
 from lblprof.curses_ui import TerminalTreeUI
 from lblprof.line_stat_object import LineStats, LineKey, LineEvent
 
@@ -84,7 +85,9 @@ class LineStatsTree:
                 logging.warning(
                     f"Time of line {event.id} is negative: {event.start_time} - {previous_start_time}"
                 )
-            self.events_index[previous_id].duration = event.start_time - previous_start_time
+            self.events_index[previous_id].duration = (
+                event.start_time - previous_start_time
+            )
             time_save[event.parent] = (id, event.start_time)
 
         # 4. Remove END_OF_FRAME lines
@@ -106,10 +109,7 @@ class LineStatsTree:
         def _merge(event: LineStats):
             """Merge events that have same file_name, function_name and line_no in the same frame."""
             key = (
-                LineKey(
-                event.file_name,
-                event.func_name,
-                event.line_no),
+                LineKey(event.file_name, event.func_name, event.line_no),
                 tuple(event.call_stack),
             )
             if key not in grouped_events:
@@ -172,7 +172,7 @@ class LineStatsTree:
 
         def format_line_info(line: LineStats, branch: str):
             filename = os.path.basename(line.file_name)
-            line_id = f"{filename}::{line.function_name}::{line.line_no}"
+            line_id = f"{filename}::{line.func_name}::{line.line_no}"
 
             # Truncate source code
             truncated_source = (
@@ -180,13 +180,13 @@ class LineStatsTree:
             )
 
             # Display line with time info and hits count
-            assert line.time is not None
-            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.time * 1000:.2f}ms] - {truncated_source}"
+            assert line.duration is not None
+            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.duration * 1000:.2f}ms] - {truncated_source}"
 
         def group_children_by_file(
             children: dict[int, LineStats],
         ) -> Dict[str, List[LineStats]]:
-            children_by_file = {}
+            children_by_file: dict[str, list[LineStats]] = {}
             for child in children.values():
                 if child.file_name not in children_by_file:
                     children_by_file[child.file_name] = []
@@ -200,8 +200,8 @@ class LineStatsTree:
 
         def get_all_children(
             children_by_file: Dict[str, List[LineStats]],
-        ) -> List[LineStats]:
-            all_children = []
+        ) -> list[LineStats]:
+            all_children: list[LineStats] = []
             for file_name in children_by_file:
                 all_children.extend(children_by_file[file_name])
             return all_children
@@ -236,9 +236,7 @@ class LineStatsTree:
             print("=================================================")
 
             # Sort roots by total time (descending)
-            root_lines.sort(
-                key=lambda x: x.line_no if x.line_no is not None else 0, reverse=False
-            )
+            root_lines.sort(key=lambda x: x.line_no if x.line_no else 0, reverse=False)
 
             # For each root, render as a separate tree
             for i, root in enumerate(root_lines):
@@ -270,21 +268,21 @@ class LineStatsTree:
                 return [
                     line
                     for line in self.root_lines
-                    if line.time and line.time >= min_time_s
+                    if line.duration and line.duration >= min_time_s
                 ]
             else:
                 # Return children of the specified node
                 return [
                     child
                     for child in node_key.childs.values()
-                    if child.time and child.time >= min_time_s
+                    if child.duration and child.duration >= min_time_s
                 ]
 
         # Define the node formatter function
         # Given a line, return its formatted string (displayed in the UI)
         def format_node(line: LineStats, indicator: str = "") -> str:
             filename = os.path.basename(line.file_name)
-            line_id = f"{filename}::{line.function_name}::{line.line_no}"
+            line_id = f"{filename}::{line.func_name}::{line.line_no}"
 
             # Truncate source code
             truncated_source = (
@@ -292,8 +290,8 @@ class LineStatsTree:
             )
 
             # Format stats
-            assert line.time is not None
-            stats = f"[hits:{line.hits} time:{line.time:.2f}s]"
+            assert line.duration is not None
+            stats = f"[hits:{line.hits} time:{line.duration:.2f}s]"
 
             # Return formatted line
             return f"{indicator}{line_id} {stats} - {truncated_source}"
@@ -310,13 +308,13 @@ class LineStatsTree:
         with open("events.csv", "w") as f:
             for event in self.raw_events_list:
                 f.write(
-                    f"{event['id']},{event['file_name']},{event['function_name']},{event['line_no']},{event['start_time']},{event['stack_trace']}\n"
+                    f"{event.id},{event.file_name},{event.func_name},{event.line_no},{event.start_time},{event.call_stack}\n"
                 )
 
     def _save_events_index(self) -> None:
         """Save the events index to a file."""
         with open("events_index.csv", "w") as f:
-            for key, event in self.events_index.items():
+            for _, event in self.events_index.items():
                 f.write(
                     f"{event.id},{event.file_name.split('/')[-1]},{event.func_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.duration},{len(event.childs)},{event.parent}\n"
                 )
