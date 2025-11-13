@@ -1,10 +1,10 @@
 import numpy as np  # noqa: F401
-from finegrained_sysmon import instrument_start
+from lblprof.runtime_monitoring import start_profiling
 from zzz2 import f3  # noqa: F401
 # from lblprof.curses_ui import NodeTerminalUI  # noqa: F401
 
 
-instrument_start()
+start_profiling()
 
 
 def f1():
