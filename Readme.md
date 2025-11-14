@@ -25,15 +25,15 @@ The only dependency of this package is pydantic, the rest is standard library.
 ## Usage
 
 This package contains 4 main functions:
-- `start_tracing()`: Start the tracing of the code.
+- `start_monitoring()`: Start the tracing of the code.
 - `stop_tracing()`: Stop the tracing of the code, build the tree and compute stats
 - `show_interactive_tree(min_time_s: float = 0.1)`: show the interactive duration tree in the terminal.
 - `show_tree()`: print the tree to console.
 
 ```python
-from lblprof import start_tracing, stop_tracing, show_interactive_tree, show_tree
+from lblprof import start_monitoring, stop_tracing, show_interactive_tree, show_tree
 
-start_tracing()
+start_monitoring()
 
 # Your code here (Any code)
 

@@ -5,7 +5,7 @@ import time
 import runpy
 
 sys.path.append(os.getcwd())
-from lblprof import show_interactive_tree, start_profiling, stop_profiling, tracer
+from lblprof import show_interactive_tree, start_monitoring, stop_profiling, tracer
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -40,7 +40,7 @@ def main():
 
 
 # run the tracer for a bit and return the tree
-start_profiling()
+start_monitoring()
 # time.sleep(1)
 # main()
 # import pandas as pd  # noqa: E402,F401

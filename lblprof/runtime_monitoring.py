@@ -21,6 +21,9 @@ class InstrumentationFinder(importlib.abc.MetaPathFinder):
     def find_spec(
         self, name: str, path: Sequence[str] | None, target: Optional[ModuleType] = None
     ) -> Optional[importlib.machinery.ModuleSpec]:
+        """Finder of importlib that will change the loader of the found module if it
+        correspond to filters.
+        If None is returned, next finder in sys.meta_path will be used"""
         spec = importlib.machinery.PathFinder.find_spec(name, path, target)
         if not spec or not spec.origin or not spec.loader:
             return None
@@ -41,12 +44,9 @@ class InstrumentLoader(importlib.abc.Loader):
 
     def exec_module(self, module: ModuleType) -> None:
         module_spec = module.__spec__
-        if not module_spec:
+        if not module_spec or not module_spec.origin:
             return
-        file_path = module_spec.origin
-        if not file_path:
-            return
-        file_path = Path(file_path)
+        file_path = Path(module_spec.origin)
         code = instrument_file(file_path)
         exec(code, module.__dict__)
         return

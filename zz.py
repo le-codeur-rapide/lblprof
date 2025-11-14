@@ -1,13 +1,13 @@
 import time
 import numpy as np  # noqa: F401
-from lblprof import start_profiling, stop_profiling, show_interactive_tree
+from lblprof import start_monitoring, stop_monitoring, show_interactive_tree
 import logging
 from zzz2 import f3  # noqa: F401
 
 logging.basicConfig(level=logging.DEBUG)
 
 print("Starting profiling...")
-start_profiling()
+start_monitoring()
 print("Profiling started.")
 
 # from lblprof.curses_ui import NodeTerminalUI  # noqa: F401
@@ -31,5 +31,5 @@ def f2():
 f2()
 
 
-stop_profiling()
+stop_monitoring()
 show_interactive_tree()

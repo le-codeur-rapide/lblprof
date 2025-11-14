@@ -15,11 +15,11 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     if mode == "profiled":
-        from lblprof import start_tracing, stop_tracing
+        from lblprof import start_monitoring, stop_monitoring
 
-        start_tracing()
+        start_monitoring()
         fn()
-        stop_tracing()
+        stop_monitoring()
     else:
         fn()
     end = time.perf_counter()

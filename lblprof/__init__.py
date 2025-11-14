@@ -17,14 +17,14 @@ if not hasattr(sys, "monitoring"):
     raise RuntimeError("Python 3.12+ is required to use lblprof")
 
 
-def start_profiling():
+def start_monitoring():
     # TODO put most of this code away in a function that takes the
     # tracer and the caller frame
 
     # 1. Register sys.monitoring hooks
     tracer.register_hooks()
 
-    # 2. Find the *current* module (the one calling start_profiling)
+    # 2. Find the *current* module (the one calling start_monitoring)
     caller_frame = inspect.stack()[1]
     caller_code = caller_frame.frame.f_code
     instrument_code_recursive(caller_code)
@@ -36,7 +36,7 @@ def start_profiling():
     clear_cache_modules(DEFAULT_FILTER_DIRS)
 
 
-def stop_profiling() -> None:
+def stop_monitoring() -> None:
     """Stop tracing code execution."""
     tracer.stop_monitoring()
     tracer.build_tree()
