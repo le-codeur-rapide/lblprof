@@ -11,7 +11,10 @@ from typing import Optional, Sequence
 from lblprof.sys_monitoring import instrument_code_recursive
 
 # Default dir to filter user code for instrumentation
-DEFAULT_FILTER_DIRS = Path.cwd().as_posix() + "/lblprof"
+DEFAULT_FILTER_DIRS = [
+    Path.cwd().as_posix() + "/lblprof",
+    Path.cwd().as_posix() + "/zzdict",
+]
 
 
 class InstrumentationFinder(importlib.abc.MetaPathFinder):
@@ -21,7 +24,7 @@ class InstrumentationFinder(importlib.abc.MetaPathFinder):
         spec = importlib.machinery.PathFinder.find_spec(name, path, target)
         if not spec or not spec.origin or not spec.loader:
             return None
-        if "/lib" not in spec.origin:
+        if any(path in spec.origin for path in DEFAULT_FILTER_DIRS):
             spec.loader = InstrumentLoader(spec.loader)
             return spec
         return None
@@ -44,13 +47,8 @@ class InstrumentLoader(importlib.abc.Loader):
         if not file_path:
             return
         file_path = Path(file_path)
-        if file_path and "lblprof" in file_path.parts and "/lib" not in str(file_path):
-            code = instrument_file(file_path)
-            exec(code, module.__dict__)
-            return
-        else:
-            print(f"Executing module {module.__name__} without instrumentation")
-            self.loader.exec_module(module)
+        code = instrument_file(file_path)
+        exec(code, module.__dict__)
         return
 
 

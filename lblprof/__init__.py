@@ -18,6 +18,9 @@ if not hasattr(sys, "monitoring"):
 
 
 def start_profiling():
+    # TODO put most of this code away in a function that takes the
+    # tracer and the caller frame
+
     # 1. Register sys.monitoring hooks
     tracer.register_hooks()
 
@@ -30,7 +33,7 @@ def start_profiling():
     sys.meta_path.insert(0, InstrumentationFinder())
 
     # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
-    clear_cache_modules([DEFAULT_FILTER_DIRS])
+    clear_cache_modules(DEFAULT_FILTER_DIRS)
 
 
 def stop_profiling() -> None:

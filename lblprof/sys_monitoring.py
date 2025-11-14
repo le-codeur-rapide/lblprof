@@ -22,6 +22,8 @@ class CodeMonitor:
 
     def __init__(self):
         self.stack: list[LineKey] = list()
+        """the stack is used to stock list of function calls that led to the
+        current line"""
         self.events: list[LineEvent] = list()
         self.nb_events_recorded: int = 0
         self.tempo_line_infos: LineKey | None = None
@@ -39,7 +41,6 @@ class CodeMonitor:
     def handle_line(self, code: CodeType, instruction_offset: int):
         """Code to run when a line of code is executed"""
         logging.debug(f"LINE in {code.co_name}, at offset {instruction_offset}")
-        logging.debug(f"stack is :{self.stack}")
         start = time.perf_counter()
         self.events.append(
             LineEvent(
@@ -92,13 +93,10 @@ class CodeMonitor:
 
     def stop_monitoring(self):
         sys.monitoring.free_tool_id(TOOL_ID)
-        save_events_csv(self.events)
 
     def build_tree(self):
         self.tree = LineStatsTree(self.events)
         self.tree.build_tree()
-        print(self.tree.root_lines)
-        print(self.tree.raw_events_list)
 
 
 def instrument_code_recursive(code: CodeType):
