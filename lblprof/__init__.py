@@ -22,6 +22,7 @@ def start_monitoring():
     # tracer and the caller frame
 
     # 1. Register sys.monitoring hooks
+    tracer.reset_monitoring()
     tracer.register_hooks()
 
     # 2. Find the *current* module (the one calling start_monitoring)
@@ -39,6 +40,10 @@ def start_monitoring():
 def stop_monitoring() -> None:
     """Stop tracing code execution."""
     tracer.stop_monitoring()
+
+    # remove the custom finder
+    if isinstance(sys.meta_path[0], InstrumentationFinder):
+        sys.meta_path = sys.meta_path[1:]
     tracer.build_tree()
 
 

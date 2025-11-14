@@ -91,8 +91,21 @@ class CodeMonitor:
             tool_id, sys.monitoring.events.PY_RETURN, self.handle_return
         )
 
+    def reset_monitoring(self):
+        self.__init__()
+
     def stop_monitoring(self):
+        sys.monitoring.set_events(TOOL_ID, 0)
         sys.monitoring.free_tool_id(TOOL_ID)
+        sys.monitoring.register_callback(
+            TOOL_ID, sys.monitoring.events.PY_START, lambda *args: None
+        )
+        sys.monitoring.register_callback(
+            TOOL_ID, sys.monitoring.events.LINE, lambda *args: None
+        )
+        sys.monitoring.register_callback(
+            TOOL_ID, sys.monitoring.events.PY_RETURN, lambda *args: None
+        )
 
     def build_tree(self):
         self.tree = LineStatsTree(self.events)

@@ -13,10 +13,10 @@ if __name__ == "__main__":
     mod = importlib.import_module(module)
     fn = getattr(mod, func_name)
 
+    from lblprof import start_monitoring, stop_monitoring
+
     start = time.perf_counter()
     if mode == "profiled":
-        from lblprof import start_monitoring, stop_monitoring
-
         start_monitoring()
         fn()
         stop_monitoring()
