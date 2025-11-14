@@ -1,4 +1,4 @@
-import runpy
+import importlib
 import os
 import pytest
 import logging
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 # Get all Python files from the example_scripts directory
 EXAMPLE_SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "example_scripts")
 EXAMPLE_SCRIPTS = [
-    os.path.join(EXAMPLE_SCRIPTS_DIR, f)
+    f.replace(".py", "")
     for f in os.listdir(EXAMPLE_SCRIPTS_DIR)
     if f.endswith(".py") and not f.startswith("__")
 ]
@@ -31,7 +31,7 @@ def tree(request: pytest.FixtureRequest):
     start_monitoring()
 
     # Load and execute the example script
-    runpy.run_path(request.param, run_name="__main__")
+    importlib.import_module(f"example_scripts.{request.param}")
 
     stop_monitoring()
     # print the tree

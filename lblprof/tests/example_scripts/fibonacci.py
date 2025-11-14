@@ -11,6 +11,5 @@ def fib_iterative(n):
     return a
 
 
-if __name__ == "__main__":
-    time.sleep(0.05)
-    fib_iterative(4)
+time.sleep(0.05)
+fib_iterative(4)

@@ -4,5 +4,4 @@ def doublezip():
     _ = any(cell is not None for cell in rows[0])
 
 
-if __name__ == "__main__":
-    doublezip()
+doublezip()

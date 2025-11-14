@@ -17,9 +17,8 @@ def main2():
     time.sleep(0.1)
 
 
-if __name__ == "__main__":
-    # start_monitoring()
-    main()
-    time.sleep(0.1)
+# start_monitoring()
+main()
+time.sleep(0.1)
 
-    # show_tree()
+# show_tree()
