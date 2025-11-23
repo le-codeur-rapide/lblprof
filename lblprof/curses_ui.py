@@ -1,4 +1,5 @@
 import curses
+import sys
 from typing import Callable, List, Optional, TypedDict
 
 from lblprof.line_stat_object import EventKeyT, LineStats
@@ -26,6 +27,8 @@ class TerminalTreeUI:
             tree_data_provider: Callable that returns the tree data to display
             node_formatter: Callable that formats a node for display
         """
+        if not sys.stdin.isatty():
+            raise RuntimeError("Interactive mode requires a real terminal.")
         self.tree_data_provider = tree_data_provider
         self.node_formatter = node_formatter
 
