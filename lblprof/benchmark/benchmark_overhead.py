@@ -44,7 +44,7 @@ def print_bench_result(
 for func in sample_functions:
     module = func.__module__
     fn = func.__name__
-    number_of_runs = 10
+    number_of_runs = 30
     profiled_times: list[float] = []
     unprofiled_times: list[float] = []
     for _ in range(number_of_runs):

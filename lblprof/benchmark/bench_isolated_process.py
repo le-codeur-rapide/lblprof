@@ -13,15 +13,15 @@ if __name__ == "__main__":
     mod = importlib.import_module(module)
     fn = getattr(mod, func_name)
 
-    from lblprof import start_monitoring, stop_monitoring
+    from lblprof import start_monitoring, stop_monitoring, tracer
 
     start = time.perf_counter()
     if mode == "profiled":
         start_monitoring()
         fn()
         stop_monitoring()
+        print(json.dumps({"time": tracer.tree.events_index[0].duration}))
     else:
         fn()
-    end = time.perf_counter()
-
-    print(json.dumps({"time": end - start}))
+        end = time.perf_counter()
+        print(json.dumps({"time": end - start}))
