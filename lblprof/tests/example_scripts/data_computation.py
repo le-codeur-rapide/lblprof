@@ -8,8 +8,6 @@ import pandas as pd
 import numpy as np
 import time
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def fetch_exchange_rates():
     logging.info("Fetching exchange rates from Frankfurter API...")

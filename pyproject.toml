@@ -15,7 +15,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["pydantic>=2.0.0"]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -26,6 +26,7 @@ dev = [
     "ruff>=0.3.0",
     "pytest>=7.0.0",
     "black>=24.2.0",
+    "pydantic>=2.0.0",
 ]
 
 [tool.setuptools]
@@ -40,6 +41,6 @@ log_cli = true
 log_cli_level = "INFO"
 addopts = "-v -x"
 
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ["py312"]
+indent-width = 4
