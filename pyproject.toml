@@ -6,23 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "lblprof"
 version = "0.1.8"
 description = "Line by line terminal based profiler"
-authors = [
-  { name="le-codeur-rapide", email="paul.vezia@gmail.com" }
-
-
-  
-]
+authors = [{ name = "le-codeur-rapide", email = "paul.vezia@gmail.com" }]
 readme = "Readme.md"
 requires-python = ">=3.12"
-license = {text = "MIT"}
+license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "pydantic>=2.0.0",
-]
+dependencies = ["pydantic>=2.0.0"]
 
 [project.optional-dependencies]
 dev = [

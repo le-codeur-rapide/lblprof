@@ -26,7 +26,7 @@ EXAMPLE_SCRIPTS = [
 
 
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
-def tree(request: pytest.FixtureRequest):
+def tree(request: pytest.FixtureRequest) -> LineStatsTree:
     # run the tracer for a bit and return the tree
     start_monitoring()
 

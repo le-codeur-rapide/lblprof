@@ -23,7 +23,7 @@ print("alalalallalaalalla")
 
 
 def f2():
-    time.sleep(0.1)
+    time.sleep(0.01)
     f1()
     f4()
 

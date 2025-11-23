@@ -5,7 +5,7 @@ import time
 import runpy
 
 sys.path.append(os.getcwd())
-from lblprof import show_interactive_tree, start_monitoring, stop_profiling, tracer
+from lblprof import show_interactive_tree, start_monitoring, stop_monitoring
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -41,9 +41,9 @@ def main():
 
 # run the tracer for a bit and return the tree
 start_monitoring()
-# time.sleep(1)
-# main()
-# import pandas as pd  # noqa: E402,F401
+time.sleep(1)
+main()
+import pandas as pd  # type: ignore # noqa: E402,F401
 
 # Load and execute the example script
 start_time = time.perf_counter()
@@ -51,9 +51,7 @@ runpy.run_path(script_path, run_name="__main__")
 end_time = time.perf_counter()
 print(f"Time taken: {end_time - start_time} seconds")
 
-stop_profiling()
+stop_monitoring()
 # print the tree
 # show_tree()
 show_interactive_tree(min_time_s=0.0)
-tracer.tree._save_events()
-tracer.tree._save_events_index()

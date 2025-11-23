@@ -10,8 +10,6 @@ import time
 
 logging.basicConfig(level=logging.DEBUG)
 
-time.sleep(1)
-
 
 def fetch_exchange_rates():
     logging.info("Fetching exchange rates from Frankfurter API...")

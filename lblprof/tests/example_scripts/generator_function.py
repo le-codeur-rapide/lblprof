@@ -3,7 +3,7 @@ import time
 
 def generator():
     for i in range(10):
-        time.sleep(0.05)
+        time.sleep(0.01)
         yield i
 
 
@@ -12,9 +12,9 @@ for i in generator():
 
 gene = list(generator())
 
-pure_gene = list(time.sleep(0.1) for i in range(10))
+pure_gene = list(time.sleep(0.01) for i in range(10))
 
-double_gen = list(time.sleep(0.1) for i in range(2) for j in range(2) if True)
+double_gen = list(time.sleep(0.01) for i in range(2) for j in range(2) if True)
 
 # rows = [(1, 2, None), (3, 4, None), (5, 6, None)]
 # filtered = list(
