@@ -4,10 +4,10 @@ import sys
 # Import the base tracer that works on all Python versions
 from .sys_monitoring import CodeMonitor, instrument_code_recursive
 from .runtime_monitoring import (
-    DEFAULT_FILTER_DIRS,
     InstrumentationFinder,
     clear_cache_modules,
 )
+
 
 # Create a singleton instance for the module
 tracer = CodeMonitor()
@@ -26,6 +26,7 @@ def start_monitoring():
     tracer.register_hooks()
 
     # 2. Find the *current* module (the one calling start_monitoring)
+    # print("stack", inspect.stack())
     caller_frame = inspect.stack()[1]
     caller_code = caller_frame.frame.f_code
     instrument_code_recursive(caller_code)
@@ -34,7 +35,7 @@ def start_monitoring():
     sys.meta_path.insert(0, InstrumentationFinder())
 
     # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
-    clear_cache_modules(DEFAULT_FILTER_DIRS)
+    clear_cache_modules()
 
 
 def stop_monitoring() -> None:
