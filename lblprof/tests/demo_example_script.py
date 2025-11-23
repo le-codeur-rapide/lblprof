@@ -41,8 +41,6 @@ def main():
 
 # run the tracer for a bit and return the tree
 start_monitoring()
-time.sleep(1)
-main()
 import pandas as pd  # type: ignore # noqa: E402,F401
 
 # Load and execute the example script
