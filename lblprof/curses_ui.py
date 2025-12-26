@@ -12,6 +12,10 @@ from lblprof.utils.visual_constants import (
     SPACE_CHARS,
 )
 
+TUI_HELP_TEXT = (
+    "[↑/↓]: Navigate | [PgUp/PgDn]: Page | [Enter]: Expand/Collapse | [q]: Quit"
+)
+
 
 class NodeTerminalUI(TypedDict):
     line: LineStats
@@ -250,17 +254,57 @@ class TerminalTreeUI:
         elif self.current_pos >= self.scroll_offset + visible_height:
             self.scroll_offset = self.current_pos - visible_height + 1
 
+    def _move(self, delta: int, display_len: int, visible_height: int) -> None:
+        if display_len <= 0:
+            return
+        self.current_pos = min(max(self.current_pos + delta, 0), display_len - 1)
+        self._ensure_visible(visible_height, display_len)
+
+    def _page(self, delta_pages: int, display_len: int, visible_height: int) -> None:
+        if display_len <= 0:
+            return
+        delta = delta_pages * visible_height
+        self.current_pos = min(max(self.current_pos + delta, 0), display_len - 1)
+        self.scroll_offset = self.scroll_offset + delta
+        self._ensure_visible(visible_height, display_len)
+
+    def _dispatch_key(
+        self,
+        key: int,
+        display_data: list[NodeTerminalUI],
+        visible_height: int,
+    ) -> bool:
+        """Dispatch a key event to the UI."""
+        if key == ord("q"):
+            return False
+
+        display_len = len(display_data)
+
+        def toggle() -> None:
+            if 0 <= self.current_pos < display_len:
+                node = display_data[self.current_pos]
+                if node["has_children"]:
+                    self._toggle_collapse(node)
+
+        actions: dict[int, Callable[[], None]] = {
+            curses.KEY_UP: lambda: self._move(-1, display_len, visible_height),
+            curses.KEY_DOWN: lambda: self._move(1, display_len, visible_height),
+            curses.KEY_PPAGE: lambda: self._page(-1, display_len, visible_height),
+            curses.KEY_NPAGE: lambda: self._page(1, display_len, visible_height),
+            ord("\n"): toggle,
+        }
+
+        action = actions.get(key)
+        if action is not None:
+            action()
+
+        return True
+
     def main_curses_loop(self, stdscr: curses.window) -> None:
         """Main curses loop for displaying and interacting with the tree."""
         initialise_curses(stdscr)
         root_nodes = self.tree_data_provider(None)
 
-        # Header and help text
-        help_text = (
-            "[↑/↓]: Navigate | [PgUp/PgDn]: Page | [Enter]: Expand/Collapse | [q]: Quit"
-        )
-
-        # Main UI loop
         running = True
         while running:
             # Get terminal dimensions
@@ -276,71 +320,17 @@ class TerminalTreeUI:
             self._clamp_pos(len(display_data))
             self._ensure_visible(visible_height, len(display_data))
 
-            # Clear screen
             stdscr.clear()
-
-            # Display header
             header = "LINE TRACE TREE"
             stdscr.addstr(0, 0, header, curses.color_pair(3) | curses.A_BOLD)
             stdscr.addstr(1, 0, "=" * len(header), curses.color_pair(3))
 
-            # Display tree
             self._render_tree(stdscr, display_data, max_y, max_x)
-
-            # Display help
-            stdscr.addstr(max_y - 1, 0, help_text, curses.color_pair(3))
-
-            # Refresh screen
+            stdscr.addstr(max_y - 1, 0, TUI_HELP_TEXT, curses.color_pair(3))
             stdscr.refresh()
 
-            # Get user input
             key = stdscr.getch()
-
-            # Handle key presses
-            if key == curses.KEY_UP:
-                # Move up
-                if self.current_pos > 0:
-                    self.current_pos -= 1
-                    # Adjust scroll if needed
-                    self.scroll_offset = min(self.scroll_offset, self.current_pos)
-
-            elif key == curses.KEY_DOWN:
-                # Move down
-                if self.current_pos < len(display_data) - 1:
-                    self.current_pos += 1
-                    # Adjust scroll if needed
-                    visible_height = max_y - 4
-                    if self.current_pos >= self.scroll_offset + visible_height:
-                        self.scroll_offset = self.current_pos - visible_height + 1
-
-            elif key == curses.KEY_PPAGE:  # Page Up
-                # Move up a page
-                visible_height = max_y - 4
-                self.current_pos = max(0, self.current_pos - visible_height)
-                self.scroll_offset = max(0, self.scroll_offset - visible_height)
-
-            elif key == curses.KEY_NPAGE:  # Page Down
-                # Move down a page
-                visible_height = max_y - 4
-                self.current_pos = min(
-                    len(display_data) - 1,
-                    self.current_pos + visible_height,
-                )
-                max_scroll = max(0, len(display_data) - visible_height)
-                self.scroll_offset = min(
-                    max_scroll,
-                    self.scroll_offset + visible_height,
-                )
-
-            elif key == ord("\n"):  # Enter key
-                # Toggle collapse state
-                if self.current_pos < len(display_data):
-                    current_node = display_data[self.current_pos]
-                    if current_node["has_children"]:
-                        self._toggle_collapse(current_node)
-
-            elif key == ord("q"):  # Quit
-                running = False
+            running = self._dispatch_key(key, display_data, visible_height)
 
 
 def initialise_curses(stdscr: curses.window) -> None:

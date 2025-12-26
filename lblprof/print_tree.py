@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from lblprof.line_stat_object import LineStats
+from lblprof.utils.source_code_utils import truncate_source_code
 from lblprof.utils.visual_constants import (
     BRANCH_LAST_CHARS,
     BRANCH_MID_CHARS,
@@ -17,15 +18,7 @@ MAX_SOURCE_LENGTH = 60
 def format_line_info(line: LineStats, branch: str, prefix: str) -> str:
     filename = Path(line.file_name).name
     line_id = f"{filename}::{line.func_name}::{line.line_no}"
-
-    # Truncate source code
-    truncated_source = (
-        line.source[:MAX_SOURCE_LENGTH] + "..."
-        if len(line.source) > MAX_SOURCE_LENGTH
-        else line.source
-    )
-
-    # Display line with time info and hits count
+    truncated_source = truncate_source_code(line.source, MAX_SOURCE_LENGTH)
     return (
         f"{prefix}{branch}{line_id} [hits:{line.hits} "
         f"total:{line.duration * 1000:.2f}ms] - {truncated_source}"
@@ -33,10 +26,13 @@ def format_line_info(line: LineStats, branch: str, prefix: str) -> str:
 
 
 def group_children_by_file(
-    children: dict[int, LineStats],
+    children: list[LineStats],
 ) -> dict[str, list[LineStats]]:
+    """Return a dictionary of children grouped by file name and sorted by
+    line number:
+    dict[file_name: list[children]]"""
     children_by_file: dict[str, list[LineStats]] = {}
-    for child in children.values():
+    for child in children:
         if child.file_name not in children_by_file:
             children_by_file[child.file_name] = []
         children_by_file[child.file_name].append(child)
@@ -51,32 +47,14 @@ def group_children_by_file(
 def get_sorted_children(
     children: list[LineStats],
 ) -> list[LineStats]:
-    """Sort children by file and line number."""
-    # Group children by file
-    children_by_file: dict[str, list[LineStats]] = {}
-    for child in children:
-        if child.file_name not in children_by_file:
-            children_by_file[child.file_name] = []
-        children_by_file[child.file_name].append(child)
-
-    # Sort each file's lines by line number
-    for child in children_by_file.values():
-        child.sort(key=lambda x: x.line_no)
-
+    """Sort children by file and line number.
+    Returns a list of children sorted by file name and line number."""
+    children_by_file = group_children_by_file(children)
     # Flatten all children
     all_children: list[LineStats] = []
     for child in children_by_file.values():
         all_children.extend(child)
 
-    return all_children
-
-
-def get_all_children(
-    children_by_file: dict[str, list[LineStats]],
-) -> list[LineStats]:
-    all_children: list[LineStats] = []
-    for children in children_by_file.values():
-        all_children.extend(children)
     return all_children
 
 
@@ -99,8 +77,7 @@ def print_tree(
         print(format_line_info(root, branch, prefix))
 
         # Get all child lines and organize them
-        children_by_file = group_children_by_file(root.childs)
-        all_children = get_all_children(children_by_file)
+        all_children = get_sorted_children(list(root.childs.values()))
 
         # Display child lines in order
         next_prefix = prefix + (SPACE_CHARS if is_last_root else PIPE_CHARS)
@@ -134,8 +111,7 @@ def print_line_recursively(
     child_lines = line.childs
 
     # Group and organize children
-    children_by_file = group_children_by_file(child_lines)
-    all_children = get_all_children(children_by_file)
+    all_children = get_sorted_children(list(child_lines.values()))
 
     # Display child lines in order
     next_prefix = prefix + (SPACE_CHARS if is_last else PIPE_CHARS)

@@ -19,3 +19,8 @@ def get_source_code(
             return lines[line_no - 1].strip()
     except Exception:
         return "No source code found"
+
+
+def truncate_source_code(source: str, max_length: int) -> str:
+    """Truncate the source code to a maximum length."""
+    return source[:max_length] + "..." if len(source) > max_length else source
