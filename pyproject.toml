@@ -63,19 +63,19 @@ select = [
     "EXE", # flake8-executable
     "FA",  # flake8-future-annotations
     # "FBT", # flake8-boolean-trap
-    "ICN", # flake8-import-conventions
-    "ISC", # flake8-implicit-str-concat
-    "PIE", # flake8-pie
-    "PT",  # flake8-pytest-style
-    "PTH", # flake8-use-pathlib
-    "RET", # flake8-return
-    "RSE", # flake8-raise
-    "SIM", # flake8-simplify
-    "S",   # flake8-bandit
-    "T20", # flake8-print
-    "ARG", # flake8-unused-arguments
-    "ERA", # eradicate
-    # "PL",   # pylint
+    "ICN",  # flake8-import-conventions
+    "ISC",  # flake8-implicit-str-concat
+    "PIE",  # flake8-pie
+    "PT",   # flake8-pytest-style
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "RSE",  # flake8-raise
+    "SIM",  # flake8-simplify
+    "S",    # flake8-bandit
+    "T20",  # flake8-print
+    "ARG",  # flake8-unused-arguments
+    "ERA",  # eradicate
+    "PL",   # pylint
     "PERF", # perflint
     "FURB", # refurb
     "TRY",  # tryceratops

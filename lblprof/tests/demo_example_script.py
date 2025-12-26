@@ -6,7 +6,7 @@ import runpy
 import sys
 import time
 
-from lblprof import tracer
+from lblprof import show_tree, tracer
 from lblprof.line_stat_object import save_events_csv
 
 sys.path.append(os.getcwd())
@@ -58,6 +58,6 @@ print(f"Time taken: {end_time - start_time} seconds")
 
 stop_monitoring()
 # print the tree
-# show_tree()
+show_tree()
 save_events_csv(tracer.events, "events.csv")
 show_interactive_tree(min_time_s=0.0)

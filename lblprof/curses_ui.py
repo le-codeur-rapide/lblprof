@@ -336,7 +336,7 @@ class TerminalTreeUI:
                 if self.current_pos < len(display_data):
                     current_node = display_data[self.current_pos]
                     if current_node["has_children"]:
-                        self._toggle_collapse(display_data, current_node)
+                        self._toggle_collapse(current_node)
 
             elif key == ord("q"):  # Quit
                 running = False
