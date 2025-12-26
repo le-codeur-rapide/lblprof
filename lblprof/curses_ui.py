@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import TypedDict
 
 from lblprof.line_stat_object import EventKeyT, LineStats
+from lblprof.print_tree import get_sorted_children
 from lblprof.utils.visual_constants import (
     BRANCH_LAST_CHARS,
     BRANCH_MID_CHARS,
@@ -17,29 +18,6 @@ class NodeTerminalUI(TypedDict):
     depth: int
     is_last: bool
     has_children: bool
-
-
-def get_sorted_children(
-    children: list[LineStats],
-) -> list[LineStats]:
-    """Sort children by file and line number."""
-    # Group children by file
-    children_by_file: dict[str, list[LineStats]] = {}
-    for child in children:
-        if child.file_name not in children_by_file:
-            children_by_file[child.file_name] = []
-        children_by_file[child.file_name].append(child)
-
-    # Sort each file's lines by line number
-    for child in children_by_file.values():
-        child.sort(key=lambda x: x.line_no)
-
-    # Flatten all children
-    all_children: list[LineStats] = []
-    for child in children_by_file.values():
-        all_children.extend(child)
-
-    return all_children
 
 
 def add_children_to_display(
@@ -75,6 +53,82 @@ def add_children_to_display(
             )
 
 
+def generate_display_data(
+    root_nodes: list[LineStats],
+    expanded_nodes: set[EventKeyT],
+    tree_data_provider: Callable[[LineStats | None], list[LineStats]],
+) -> list[NodeTerminalUI]:
+    """Generate flattened display data based on current UI state."""
+    display_data: list[NodeTerminalUI] = []
+
+    # Process each root node
+    for i, root in enumerate(root_nodes):
+        node_data: NodeTerminalUI = {
+            "line": root,
+            "depth": 0,
+            "is_last": i == len(root_nodes) - 1,
+            "has_children": bool(root.childs),
+        }
+        display_data.append(node_data)
+
+        # Add children only if explicitly expanded
+        if root.event_key in expanded_nodes:
+            add_children_to_display(
+                tree_data_provider,
+                expanded_nodes,
+                display_data,
+                root,
+                1,
+            )
+
+    return display_data
+
+
+def is_last_ancestor(
+    node: NodeTerminalUI,
+    display_data: list[NodeTerminalUI],
+    depth: int,
+) -> bool:
+    """Check if the node has an ancestor at the given depth that is the last
+    child."""
+    # Find all nodes at this depth level
+    nodes_at_depth = [n for n in display_data if n["depth"] == depth]
+    if not nodes_at_depth:
+        return False
+
+    # Get the last node at this depth that appears before our target node
+    for n in reversed(nodes_at_depth):
+        if display_data.index(n) < display_data.index(node):
+            return n["is_last"]
+
+    return False
+
+
+def get_prefix(
+    node: NodeTerminalUI,
+    display_data: list[NodeTerminalUI],
+) -> str:
+    """Generate the tree prefix for a node based on its position in the
+    hierarchy."""
+    prefix = ""
+    if node["depth"] == 0:
+        # Root nodes
+        return BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
+
+    # For each level of depth, determine if we need a pipe or space
+    for d in range(node["depth"] + 1):
+        if d == node["depth"]:
+            # Last level - add branch
+            prefix += BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
+        else:
+            # Find if any parent at this level is a last child
+            prefix += (
+                SPACE_CHARS if is_last_ancestor(node, display_data, d) else PIPE_CHARS
+            )
+
+    return prefix
+
+
 class TerminalTreeUI:
     """A terminal UI for displaying and interacting with tree data."""
 
@@ -102,37 +156,6 @@ class TerminalTreeUI:
         )  # Keys of expanded nodes (instead of collapsed)
         self.current_pos = 0  # Current selected position
         self.scroll_offset = 0  # Vertical scroll offset
-
-    def _generate_display_data(
-        self,
-        root_nodes: list[LineStats],
-    ) -> list[NodeTerminalUI]:
-        """Generate flattened display data based on current UI state."""
-        display_data: list[NodeTerminalUI] = []
-
-        # Process each root node
-        for i, root in enumerate(root_nodes):
-            is_last_root = i == len(root_nodes) - 1
-
-            node_data: NodeTerminalUI = {
-                "line": root,
-                "depth": 0,
-                "is_last": is_last_root,
-                "has_children": bool(root.childs),
-            }
-            display_data.append(node_data)
-
-            # Add children only if explicitly expanded
-            if root.event_key in self.expanded_nodes:
-                add_children_to_display(
-                    self.tree_data_provider,
-                    self.expanded_nodes,
-                    display_data,
-                    root,
-                    1,
-                )
-
-        return display_data
 
     def _render_tree(
         self,
@@ -166,7 +189,7 @@ class TerminalTreeUI:
             )
 
             # Generate prefix based on depth and position
-            prefix = self._get_prefix(node, display_data)
+            prefix = get_prefix(node, display_data)
 
             # Get indicator for expandable nodes
             indicator = ""
@@ -188,50 +211,6 @@ class TerminalTreeUI:
             # Add to screen
             stdscr.addstr(screen_y, 0, full_line, color)
             screen_y += 1
-
-    def _get_prefix(
-        self,
-        node: NodeTerminalUI,
-        display_data: list[NodeTerminalUI],
-    ) -> str:
-        """Generate the tree prefix for a node based on its position in the
-        hierarchy."""
-        prefix = ""
-        if node["depth"] == 0:
-            # Root nodes
-            return BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
-
-        # For each level of depth, determine if we need a pipe or space
-        for d in range(node["depth"] + 1):
-            if d == node["depth"]:
-                # Last level - add branch
-                prefix += BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
-            else:
-                # Find if any parent at this level is a last child
-                is_last_ancestor = self._check_if_last_ancestor(node, display_data, d)
-                prefix += SPACE_CHARS if is_last_ancestor else PIPE_CHARS
-
-        return prefix
-
-    def _check_if_last_ancestor(
-        self,
-        node: NodeTerminalUI,
-        display_data: list[NodeTerminalUI],
-        depth: int,
-    ) -> bool:
-        """Check if the node has an ancestor at the given depth that is the last
-        child."""
-        # Find all nodes at this depth level
-        nodes_at_depth = [n for n in display_data if n["depth"] == depth]
-        if not nodes_at_depth:
-            return False
-
-        # Get the last node at this depth that appears before our target node
-        for n in reversed(nodes_at_depth):
-            if display_data.index(n) < display_data.index(node):
-                return n["is_last"]
-
-        return False
 
     def _toggle_collapse(
         self,
@@ -278,7 +257,11 @@ class TerminalTreeUI:
 
             # Adjust scroll_offset if window is resized to be smaller
             visible_height = max_y - 4
-            display_data = self._generate_display_data(root_nodes)
+            display_data = generate_display_data(
+                root_nodes,
+                self.expanded_nodes,
+                self.tree_data_provider,
+            )
             if self.current_pos >= len(display_data):
                 self.current_pos = len(display_data) - 1 if display_data else 0
 
