@@ -1,6 +1,7 @@
 """Get values of line of codes to display them in the UI"""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 
@@ -13,7 +14,7 @@ def get_source_code(
     if line_no == "END_OF_FRAME":
         return "END_OF_FRAME"
     try:
-        with open(file_name) as f:
+        with Path(file_name).open() as f:
             lines = f.readlines()
             return lines[line_no - 1].strip()
     except Exception:

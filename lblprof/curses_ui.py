@@ -29,7 +29,8 @@ class TerminalTreeUI:
             node_formatter: Callable that formats a node for display
         """
         if not sys.stdin.isatty():
-            raise RuntimeError("Interactive mode requires a real terminal.")
+            msg = "Interactive mode requires a real terminal."
+            raise RuntimeError(msg)
         self.tree_data_provider = tree_data_provider
         self.node_formatter = node_formatter
 
@@ -136,24 +137,10 @@ class TerminalTreeUI:
         # root_spacers = set()  # Track where to add blank lines
 
         # Calculate visible range accounting for spacers
-        visible_end = self.scroll_offset
-        visible_items = 0
-        for i in range(self.scroll_offset, len(display_data)):
-            if visible_items >= visible_height:
-                break
-            visible_end = i + 1
-            visible_items += 1
-            # if i + 1 in root_spacers:
-            #     visible_items += 1  # Count the spacer
+        visible_end = min(self.scroll_offset + visible_height, len(display_data))
 
         # Render the visible portion
-        rendered_pos = 0
         for i in range(self.scroll_offset, visible_end):
-            # Add a blank line before root nodes (except the first one)
-            # if i in root_spacers:
-            #     screen_y += 1
-            #     rendered_pos += 1
-
             node = display_data[i]
 
             # Calculate screen position
@@ -189,7 +176,6 @@ class TerminalTreeUI:
             # Add to screen
             stdscr.addstr(screen_y, 0, full_line, color)
             screen_y += 1
-            rendered_pos += 1
 
     def _get_prefix(
         self,

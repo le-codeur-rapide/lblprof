@@ -3,7 +3,6 @@
 import importlib.abc
 import importlib.machinery
 import logging
-import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -11,13 +10,13 @@ from types import CodeType, ModuleType
 
 from lblprof.sys_monitoring import instrument_code_recursive
 
-DEFAULT_FILTERS_INCLUDE = [os.getcwd()]
+DEFAULT_FILTERS_INCLUDE = [Path.cwd()]
 """Path filters of code to include in analyzed code, default current working dir"""
 
 DEFAULT_FILTERS_EXCLUDE = [
     d
-    for d in os.listdir(".")
-    if os.path.isdir(d) and (d.startswith(".") or d.startswith("venv"))
+    for d in Path().iterdir()
+    if d.is_dir() and (d.name.startswith(".") or d.name.startswith("venv"))
 ]
 """Paths that would have been included but are excluded.
 Default to venv* and .* folders"""
@@ -25,12 +24,12 @@ Default to venv* and .* folders"""
 
 def should_be_instrumented(
     code_path: str,
-    include_filters: list[str] = DEFAULT_FILTERS_INCLUDE,
-    exclude_filters: list[str] = DEFAULT_FILTERS_EXCLUDE,
+    include_filters: list[Path] = DEFAULT_FILTERS_INCLUDE,
+    exclude_filters: list[Path] = DEFAULT_FILTERS_EXCLUDE,
 ) -> bool:
     """Return True if the code should be instrumented"""
-    include = any(inc in code_path for inc in include_filters)
-    exclude = any(exc in code_path for exc in exclude_filters)
+    include = any(inc.name in code_path for inc in include_filters)
+    exclude = any(exc.name in code_path for exc in exclude_filters)
     return include and not exclude
 
 
@@ -77,7 +76,7 @@ class InstrumentLoader(importlib.abc.Loader):
             return
         file_path = Path(module_spec.origin)
         code = instrument_file(file_path)
-        exec(code, module.__dict__)
+        exec(code, module.__dict__)  # noqa: S102
         return
 
 

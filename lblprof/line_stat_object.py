@@ -1,5 +1,6 @@
 import csv
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, NamedTuple
 
 
@@ -52,7 +53,7 @@ class LineStats(LineEvent):
 
 def save_events_csv(events: list[LineEvent], path: str = "events.csv") -> None:
     """Helper function that saves list of LineEvents to csv"""
-    with open(path, "w", newline="") as f:
+    with Path(path).open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
             ["id", "file_name", "func_name", "line_no", "start_time", "stack_trace"],

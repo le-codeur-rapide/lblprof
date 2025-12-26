@@ -3,6 +3,7 @@ import sys
 
 from lblprof.display_tree import show_interactive
 from lblprof.line_stats_tree import LineStatsTree
+from lblprof.print_tree import print_tree
 from lblprof.runtime_monitoring import (
     InstrumentationFinder,
     clear_cache_modules,
@@ -14,7 +15,8 @@ tracer = CodeMonitor()
 
 # Import the sys.monitoring-based tracer if Python 3.12+ is available
 if not hasattr(sys, "monitoring"):
-    raise RuntimeError("Python 3.12+ is required to use lblprof")
+    msg = "Python 3.12+ is required to use lblprof"
+    raise RuntimeError(msg)
 
 
 def start_monitoring() -> None:
@@ -51,7 +53,7 @@ def show_tree() -> None:
     """Display the tree structure."""
     tree = LineStatsTree(tracer.events)
     tree.build_tree()
-    tree.display_tree()
+    print_tree(tree.events_index, tree.root_lines)
 
 
 # Add a module-level function to expose the interactive UI

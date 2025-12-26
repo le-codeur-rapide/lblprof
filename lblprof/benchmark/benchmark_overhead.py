@@ -37,10 +37,9 @@ def print_bench_result(
     overhead_pct = (
         (overhead / unprofiled_time) * 100 if unprofiled_time > 0 else float("inf")
     )
-    print(f"Unprofiled time: {unprofiled_time:.6f} s")
-    print(f"Profiled time:   {profiled_time:.6f} s")
-    print(f"Overhead:        {overhead:.6f} s ({overhead_pct:.2f}%)")
-    print()
+    logging.info(f"Unprofiled time: {unprofiled_time:.6f} s")
+    logging.info(f"Profiled time:   {profiled_time:.6f} s")
+    logging.info(f"Overhead:        {overhead:.6f} s ({overhead_pct:.2f}%)")
 
 
 for func in sample_functions:

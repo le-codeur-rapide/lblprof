@@ -14,8 +14,7 @@ def fetch_exchange_rates():
     r = requests.get(url, params=params)
     r.raise_for_status()
     data = r.json()["rates"]
-    df = pd.DataFrame(data).T.sort_index()
-    return df
+    return pd.DataFrame(data).T.sort_index()
 
 
 def fetch_bitcoin_prices():
@@ -29,8 +28,7 @@ def fetch_bitcoin_prices():
     df["date"] = pd.to_datetime(df["timestamp"], unit="ms").dt.date
     df = df.groupby("date").mean()
     df.index = pd.to_datetime(df.index)
-    df = df[["btc_usd"]]
-    return df
+    return df[["btc_usd"]]
 
 
 def fetch_weather_data():

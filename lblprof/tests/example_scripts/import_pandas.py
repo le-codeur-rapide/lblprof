@@ -1,3 +1,4 @@
+import logging
 import time
 
 
@@ -6,7 +7,7 @@ def main():
     import pandas as pd  # noqa: F401
 
     end = time.perf_counter()
-    print(f"Time taken to import pandas: {end - start} seconds")
+    logging.info(f"Time taken to import pandas: {end - start} seconds")
     return
 
 

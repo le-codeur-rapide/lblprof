@@ -1,6 +1,6 @@
 import importlib
 import logging
-import os
+from pathlib import Path
 
 import pytest
 
@@ -17,21 +17,20 @@ logging.basicConfig(level=logging.DEBUG)
 #   - Whatever the line, if it is time.sleep(n), then the time should be n
 
 # Get all Python files from the example_scripts directory
-EXAMPLE_SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "example_scripts")
+EXAMPLE_SCRIPTS_DIR = Path(__file__).parent / "example_scripts"
 EXAMPLE_SCRIPTS = [
-    f.replace(".py", "")
-    for f in os.listdir(EXAMPLE_SCRIPTS_DIR)
-    if f.endswith(".py") and not f.startswith("__")
+    f.name.replace(".py", "")
+    for f in EXAMPLE_SCRIPTS_DIR.iterdir()
+    if f.is_file() and f.name.endswith(".py") and not f.name.startswith("__")
 ]
 
 
-@pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
+@pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: x)
 def tree(request: pytest.FixtureRequest) -> LineStatsTree:
     start_monitoring()
     importlib.import_module(f"example_scripts.{request.param}")
     stop_monitoring()
     # print the tree
-    print(f"Tree for {os.path.basename(request.param)}:")
     show_tree()
     return tracer.tree
 

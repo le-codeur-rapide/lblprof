@@ -2,6 +2,8 @@
 It takes as arguments the module name, function name, and mode (profiled or
 unprofiled)"""
 
+import logging
+
 if __name__ == "__main__":
     import importlib
     import json
@@ -21,8 +23,8 @@ if __name__ == "__main__":
         start_monitoring()
         fn()
         stop_monitoring()
-        print(json.dumps({"time": tracer.tree.events_index[0].duration}))
+        logging.info(json.dumps({"time": tracer.tree.events_index[0].duration}))
     else:
         fn()
         end = time.perf_counter()
-        print(json.dumps({"time": end - start}))
+        logging.info(json.dumps({"time": end - start}))
