@@ -337,7 +337,5 @@ class LineStatsTree:
                     return source
                 else:
                     return " "
-        except Exception as e:
-            return (
-                f"Error getting source code of line {line_no} in file {file_name}: {e}"
-            )
+        except Exception:
+            return "No source code found"

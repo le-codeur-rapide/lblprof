@@ -17,6 +17,9 @@
     // Linting configuration ---------------------------
     "editor.formatOnSave": true,
     "ruff.configuration": "${workspaceFolder}/pyproject.toml",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
     "editor.codeActionsOnSave": {
         // Automatically fix all fixable issues with ruff on save
         "source.fixAll": "always"

@@ -25,22 +25,21 @@ class CodeMonitor:
         current line"""
         self.events: list[LineEvent] = list()
         self.nb_events_recorded: int = 0
-        self.tempo_line_infos: LineKey | None = None
+        self.last_line_infos: LineKey | None = None
         self.tree: LineStatsTree = LineStatsTree([])
 
     def handle_call(self, code: CodeType, instruction_offset: int):
         """Code to execute when a function is called"""
         logging.debug(f"CALL in {code.co_name} at offset {instruction_offset}")
-        if not self.tempo_line_infos:
+        if not self.last_line_infos:
             # Here we are called by a root line, so no caller in the stack
             return
-        caller_key = self.tempo_line_infos
+        caller_key = self.last_line_infos
         self.stack.append(caller_key)
 
     def handle_line(self, code: CodeType, instruction_offset: int):
         """Code to run when a line of code is executed"""
         logging.debug(f"LINE in {code.co_name}, at offset {instruction_offset}")
-        start = time.perf_counter()
         self.events.append(
             LineEvent(
                 id=self.nb_events_recorded,
@@ -48,10 +47,10 @@ class CodeMonitor:
                 func_name=code.co_name,
                 line_no=instruction_offset,
                 call_stack=self.stack.copy(),
-                start_time=start,
+                start_time=time.perf_counter(),
             )
         )
-        self.tempo_line_infos = LineKey(
+        self.last_line_infos = LineKey(
             code.co_filename, code.co_name, instruction_offset
         )
         self.nb_events_recorded += 1
@@ -59,7 +58,6 @@ class CodeMonitor:
     def handle_return(self, code: CodeType, instruction_offset: int, retval: object):
         """Code to run when a function is returned"""
         logging.debug(f"RETURN from {code.co_name} at offset {instruction_offset}")
-        start = time.perf_counter()
         self.events.append(
             LineEvent(
                 id=self.nb_events_recorded,
@@ -67,7 +65,7 @@ class CodeMonitor:
                 func_name=code.co_name,
                 line_no="END_OF_FRAME",
                 call_stack=self.stack.copy(),
-                start_time=start,
+                start_time=time.perf_counter(),
             )
         )
         if self.stack:
@@ -91,6 +89,7 @@ class CodeMonitor:
         )
 
     def reset_monitoring(self):
+        # Reset the monitoring state
         self.__init__()
 
     def stop_monitoring(self):
@@ -105,10 +104,6 @@ class CodeMonitor:
         sys.monitoring.register_callback(
             TOOL_ID, sys.monitoring.events.PY_RETURN, lambda *args: None
         )
-
-    def build_tree(self):
-        self.tree = LineStatsTree(self.events)
-        self.tree.build_tree()
 
 
 def instrument_code_recursive(code: CodeType):

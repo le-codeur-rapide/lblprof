@@ -23,10 +23,14 @@ DEFAULT_FILTERS_EXCLUDE = [
 Default to venv* and .* folders"""
 
 
-def should_be_instrumented(code_path: str) -> bool:
+def should_be_instrumented(
+    code_path: str,
+    include_filters: list[str] = DEFAULT_FILTERS_INCLUDE,
+    exclude_filters: list[str] = DEFAULT_FILTERS_EXCLUDE,
+) -> bool:
     """Return True if the code should be instrumented"""
-    include = any(inc in code_path for inc in DEFAULT_FILTERS_INCLUDE)
-    exclude = any(exc in code_path for exc in DEFAULT_FILTERS_EXCLUDE)
+    include = any(inc in code_path for inc in include_filters)
+    exclude = any(exc in code_path for exc in exclude_filters)
     return include and not exclude
 
 
