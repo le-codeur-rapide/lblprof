@@ -26,7 +26,6 @@ def start_monitoring():
     tracer.register_hooks()
 
     # 2. Find the *current* module (the one calling start_monitoring)
-    # print("stack", inspect.stack())
     caller_frame = inspect.stack()[1]
     caller_code = caller_frame.frame.f_code
     instrument_code_recursive(caller_code)

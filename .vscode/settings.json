@@ -6,6 +6,14 @@
     "python.analysis.autoImportCompletions": true,
     "python.analysis.autoFormatStrings": true,
     "python.analysis.typeCheckingMode": "strict",
+    // Pyrefly setup (antigravity) ---------------------------
+    "python.pyrefly.displayTypeErrors": "force-on",
+    "files.exclude": {
+        "**/.git": true,
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true
+    },
     // Linting configuration ---------------------------
     "editor.formatOnSave": true,
     "ruff.configuration": "${workspaceFolder}/pyproject.toml",

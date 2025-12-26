@@ -12,8 +12,8 @@ from typing import Optional, Sequence
 from lblprof.sys_monitoring import instrument_code_recursive
 
 DEFAULT_FILTERS_INCLUDE = [os.getcwd()]
-"""Path filters of code to include in analyzed code, default current working dir
-"""
+"""Path filters of code to include in analyzed code, default current working dir"""
+
 DEFAULT_FILTERS_EXCLUDE = [
     d
     for d in os.listdir(".")
@@ -31,12 +31,21 @@ def should_be_instrumented(code_path: str) -> bool:
 
 
 class InstrumentationFinder(importlib.abc.MetaPathFinder):
+    """
+    Finder of importlib that will change the loader of the found module if it
+    correspond to filters.
+    If None is returned, the next finder in sys.meta_path will be used
+    """
+
     def find_spec(
         self, name: str, path: Sequence[str] | None, target: Optional[ModuleType] = None
     ) -> Optional[importlib.machinery.ModuleSpec]:
-        """Finder of importlib that will change the loader of the found module if it
-        correspond to filters.
-        If None is returned, next finder in sys.meta_path will be used"""
+        """
+        This method is called by importlib to find a module.
+        If the module correspond to filters, it will change the loader to
+        InstrumentLoader, else it will return None and next finder in sys.meta_path
+        will be used
+        """
         spec = importlib.machinery.PathFinder.find_spec(name, path, target)
         if not spec or not spec.origin or not spec.loader:
             return None
@@ -75,8 +84,6 @@ def instrument_file(path: Path):
 def clear_cache_modules():
     """Clear sys.module with all modules corresponding to the filters"""
     for mod_name, mod in list(sys.modules.items()):
-        if "zz" in mod_name:
-            logging.debug(f"considering {mod_name}")
         # Built in modules
         mod_spec = getattr(mod, "__spec__", None)
         if mod_spec and mod_spec.origin:
