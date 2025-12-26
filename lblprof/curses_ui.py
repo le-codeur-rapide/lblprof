@@ -4,6 +4,12 @@ from collections.abc import Callable
 from typing import TypedDict
 
 from lblprof.line_stat_object import EventKeyT, LineStats
+from lblprof.utils.visual_constants import (
+    BRANCH_LAST_CHARS,
+    BRANCH_MID_CHARS,
+    PIPE_CHARS,
+    SPACE_CHARS,
+)
 
 
 class NodeTerminalUI(TypedDict):
@@ -11,6 +17,62 @@ class NodeTerminalUI(TypedDict):
     depth: int
     is_last: bool
     has_children: bool
+
+
+def get_sorted_children(
+    children: list[LineStats],
+) -> list[LineStats]:
+    """Sort children by file and line number."""
+    # Group children by file
+    children_by_file: dict[str, list[LineStats]] = {}
+    for child in children:
+        if child.file_name not in children_by_file:
+            children_by_file[child.file_name] = []
+        children_by_file[child.file_name].append(child)
+
+    # Sort each file's lines by line number
+    for child in children_by_file.values():
+        child.sort(key=lambda x: x.line_no)
+
+    # Flatten all children
+    all_children: list[LineStats] = []
+    for child in children_by_file.values():
+        all_children.extend(child)
+
+    return all_children
+
+
+def add_children_to_display(
+    tree_data_provider: Callable[[LineStats | None], list[LineStats]],
+    expanded_nodes: set[EventKeyT],
+    display_data: list[NodeTerminalUI],
+    parent: LineStats,
+    depth: int,
+) -> None:
+    """Add children of a node to the display data recursively."""
+    # Get all child lines
+    children = tree_data_provider(parent)
+    child_lines = get_sorted_children(children)
+
+    # Add each child to display data
+    for i, child in enumerate(child_lines):
+        node_data: NodeTerminalUI = {
+            "line": child,
+            "depth": depth,
+            "is_last": i == len(child_lines) - 1,
+            "has_children": bool(child.childs),
+        }
+        display_data.append(node_data)
+
+        # Add child's children only if explicitly expanded
+        if child.event_key in expanded_nodes:
+            add_children_to_display(
+                tree_data_provider,
+                expanded_nodes,
+                display_data,
+                child,
+                depth + 1,
+            )
 
 
 class TerminalTreeUI:
@@ -33,12 +95,6 @@ class TerminalTreeUI:
             raise RuntimeError(msg)
         self.tree_data_provider = tree_data_provider
         self.node_formatter = node_formatter
-
-        # Tree branch characters
-        self.branch_mid = "├── "
-        self.branch_last = "└── "
-        self.pipe = "│   "
-        self.space = "    "
 
         # UI state
         self.expanded_nodes: set[EventKeyT] = (
@@ -68,58 +124,15 @@ class TerminalTreeUI:
 
             # Add children only if explicitly expanded
             if root.event_key in self.expanded_nodes:
-                self._add_children_to_display(display_data, root, 1)
+                add_children_to_display(
+                    self.tree_data_provider,
+                    self.expanded_nodes,
+                    display_data,
+                    root,
+                    1,
+                )
 
         return display_data
-
-    def _add_children_to_display(
-        self,
-        display_data: list[NodeTerminalUI],
-        parent: LineStats,
-        depth: int,
-    ) -> None:
-        """Add children of a node to the display data recursively."""
-        # Get all child lines
-        child_lines = self._get_sorted_children(parent)
-
-        # Add each child to display data
-        for i, child in enumerate(child_lines):
-            is_last_child = i == len(child_lines) - 1
-
-            node_data: NodeTerminalUI = {
-                "line": child,
-                "depth": depth,
-                "is_last": is_last_child,
-                "has_children": bool(child.childs),
-            }
-            display_data.append(node_data)
-
-            # Add child's children only if explicitly expanded
-            if child.event_key in self.expanded_nodes:
-                self._add_children_to_display(display_data, child, depth + 1)
-
-    def _get_sorted_children(self, parent: LineStats) -> list[LineStats]:
-        """Get children of a parent node."""
-        # First get all valid children
-        children = self.tree_data_provider(parent)
-
-        # Group children by file
-        children_by_file: dict[str, list[LineStats]] = {}
-        for child in children:
-            if child.file_name not in children_by_file:
-                children_by_file[child.file_name] = []
-            children_by_file[child.file_name].append(child)
-
-        # Sort each file's lines by line number
-        for file_name in children_by_file:
-            children_by_file[file_name].sort(key=lambda x: x.line_no)
-
-        # Flatten all children
-        all_children: list[LineStats] = []
-        for file_name in children_by_file:
-            all_children.extend(children_by_file[file_name])
-
-        return all_children
 
     def _render_tree(
         self,
@@ -186,17 +199,17 @@ class TerminalTreeUI:
         prefix = ""
         if node["depth"] == 0:
             # Root nodes
-            return self.branch_last if node["is_last"] else self.branch_mid
+            return BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
 
         # For each level of depth, determine if we need a pipe or space
         for d in range(node["depth"] + 1):
             if d == node["depth"]:
                 # Last level - add branch
-                prefix += self.branch_last if node["is_last"] else self.branch_mid
+                prefix += BRANCH_LAST_CHARS if node["is_last"] else BRANCH_MID_CHARS
             else:
                 # Find if any parent at this level is a last child
                 is_last_ancestor = self._check_if_last_ancestor(node, display_data, d)
-                prefix += self.space if is_last_ancestor else self.pipe
+                prefix += SPACE_CHARS if is_last_ancestor else PIPE_CHARS
 
         return prefix
 

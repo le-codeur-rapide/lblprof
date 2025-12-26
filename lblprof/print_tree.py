@@ -3,15 +3,15 @@
 from pathlib import Path
 
 from lblprof.line_stat_object import LineStats
+from lblprof.utils.visual_constants import (
+    BRANCH_LAST_CHARS,
+    BRANCH_MID_CHARS,
+    PIPE_CHARS,
+    SPACE_CHARS,
+)
 
 TREE_MAX_DEPTH = 10
 MAX_SOURCE_LENGTH = 60
-
-# Tree branch characters
-BRANCH_MID_CHARS = "├── "
-BRANCH_LAST_CHARS = "└── "
-PIPE_CHARS = "│   "
-SPACE_CHARS = "    "
 
 
 def format_line_info(line: LineStats, branch: str, prefix: str) -> str:
