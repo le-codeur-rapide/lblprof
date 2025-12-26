@@ -225,23 +225,34 @@ class TerminalTreeUI:
 
     def run(self) -> None:
         """Run the terminal UI."""
-        curses.wrapper(self._main_curses_loop)
+        curses.wrapper(self.main_curses_loop)
 
-    def _main_curses_loop(self, stdscr: curses.window) -> None:
+    def _clamp_pos(self, display_len: int) -> None:
+        if display_len <= 0:
+            self.current_pos = 0
+            self.scroll_offset = 0
+            return
+        if self.current_pos >= display_len:
+            self.current_pos = display_len - 1
+        self.current_pos = max(self.current_pos, 0)
+
+    def _ensure_visible(self, visible_height: int, display_len: int) -> None:
+        if display_len <= 0:
+            self.scroll_offset = 0
+            return
+
+        max_scroll = max(0, display_len - visible_height)
+        self.scroll_offset = min(self.scroll_offset, max_scroll)
+        self.scroll_offset = max(self.scroll_offset, 0)
+
+        if self.current_pos < self.scroll_offset:
+            self.scroll_offset = self.current_pos
+        elif self.current_pos >= self.scroll_offset + visible_height:
+            self.scroll_offset = self.current_pos - visible_height + 1
+
+    def main_curses_loop(self, stdscr: curses.window) -> None:
         """Main curses loop for displaying and interacting with the tree."""
-        # Initialize curses
-        stdscr.clear()
-        curses.curs_set(0)  # Hide cursor
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Normal text
-        curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Highlighted text
-        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)  # Headers
-
-        # Enable keypad and nodelay for better input handling
-        stdscr.keypad(True)
-        stdscr.nodelay(False)  # Block and wait for input
-
-        # Get root data from provider
+        initialise_curses(stdscr)
         root_nodes = self.tree_data_provider(None)
 
         # Header and help text
@@ -262,14 +273,8 @@ class TerminalTreeUI:
                 self.expanded_nodes,
                 self.tree_data_provider,
             )
-            if self.current_pos >= len(display_data):
-                self.current_pos = len(display_data) - 1 if display_data else 0
-
-            # Make sure current position is visible
-            if self.current_pos < self.scroll_offset:
-                self.scroll_offset = self.current_pos
-            elif self.current_pos >= self.scroll_offset + visible_height:
-                self.scroll_offset = max(0, self.current_pos - visible_height + 1)
+            self._clamp_pos(len(display_data))
+            self._ensure_visible(visible_height, len(display_data))
 
             # Clear screen
             stdscr.clear()
@@ -336,3 +341,18 @@ class TerminalTreeUI:
 
             elif key == ord("q"):  # Quit
                 running = False
+
+
+def initialise_curses(stdscr: curses.window) -> None:
+    """Initialise the curses environment."""
+    # Initialize curses
+    stdscr.clear()
+    curses.curs_set(0)  # Hide cursor
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Normal text
+    curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Highlighted text
+    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)  # Headers
+
+    # Enable keypad and nodelay for better input handling
+    stdscr.keypad(True)
+    stdscr.nodelay(False)  # Block and wait for input
