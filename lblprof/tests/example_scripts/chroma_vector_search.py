@@ -1,4 +1,3 @@
-# start_time = time.time()
 import chromadb
 import numpy as np
 from chromadb.config import Settings
@@ -33,5 +32,3 @@ results = collection.query(
     n_results=3,
     include=["embeddings", "metadatas", "documents"],
 )
-
-# print(f"Time taken: {time.time() - start_time} seconds")

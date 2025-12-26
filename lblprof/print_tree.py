@@ -49,8 +49,8 @@ def print_tree(
             children_by_file[child.file_name].append(child)
 
         # Sort each file's lines by line number
-        for file_name in children_by_file:
-            children_by_file[file_name].sort(key=lambda x: x.line_no)
+        for child in children_by_file.values():
+            child.sort(key=lambda x: x.line_no)
 
         return children_by_file
 
@@ -58,8 +58,8 @@ def print_tree(
         children_by_file: dict[str, list[LineStats]],
     ) -> list[LineStats]:
         all_children: list[LineStats] = []
-        for file_name in children_by_file:
-            all_children.extend(children_by_file[file_name])
+        for children in children_by_file.values():
+            all_children.extend(children)
         return all_children
 
     if root_key:
@@ -89,7 +89,6 @@ def print_tree(
             )
     else:
         # Print all root trees
-        root_lines = root_lines
         if not root_lines:
             print("No root lines found in stats")
             return

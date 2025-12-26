@@ -1,6 +1,8 @@
+import datetime
 import logging
 import random
 import time
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -8,7 +10,6 @@ import requests
 
 
 def fetch_exchange_rates():
-    logging.info("Fetching exchange rates from Frankfurter API...")
     url = "https://api.frankfurter.app/2024-12-01..2025-01-01"
     params = {"from": "USD", "to": "EUR,BRL"}
     r = requests.get(url, params=params)
@@ -18,7 +19,6 @@ def fetch_exchange_rates():
 
 
 def fetch_bitcoin_prices():
-    logging.info("Fetching Bitcoin prices from CoinGecko...")
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
     params = {"vs_currency": "usd", "days": "31", "interval": "daily"}  # Approx 1 month
     r = requests.get(url, params=params)
@@ -34,18 +34,20 @@ def fetch_bitcoin_prices():
 def fetch_weather_data():
     logging.info("Fetching weather data from Open-Meteo...")
     url = "https://api.open-meteo.com/v1/forecast"
+    start = datetime.datetime.now(tz=datetime.UTC).date()
+    end = start + timedelta(days=7)
+
     params = {
         "latitude": 48.8566,
         "longitude": 2.3522,
         "daily": "temperature_2m_max",
         "timezone": "Europe/Paris",
-        "start_date": "2024-12-01",
-        "end_date": "2025-01-01",
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
     }
     r = requests.get(url, params=params)
     r.raise_for_status()
     data = r.json()
-    logging.info(f"data = {data}")
     df = pd.DataFrame(
         {
             "date": data["daily"]["time"],
@@ -66,7 +68,6 @@ def normalize_series(series):
 def simulate_feature_extraction(df):
     df["btc_log"] = np.log(df["btc_usd"])
     df["eur_change"] = df["EUR"].pct_change()
-    logging.info(f"df = {df.head()}")
     df["temp_sin"] = np.sin(df["temp_max"] / 10)
     df["brl_rolling"] = df["BRL"].rolling(window=5).mean()
     df["interaction"] = df["btc_log"] * df["eur_change"] * df["temp_sin"]
@@ -76,29 +77,28 @@ def simulate_feature_extraction(df):
 
 def main():
     start = time.time()
-    # exchange = fetch_exchange_rates()
-    # print(f"timeaaa = {time.time() - start}")
-    # btc = fetch_bitcoin_prices()
-    # weather = fetch_weather_data()
+    exchange = fetch_exchange_rates()
+    print(f"timeaaa = {time.time() - start}")
+    btc = fetch_bitcoin_prices()
+    weather = fetch_weather_data()
 
-    # df = exchange.join(btc).join(weather)
+    df = exchange.join(btc).join(weather)
 
-    # df = simulate_feature_extraction(df)
+    df = simulate_feature_extraction(df)
 
-    # df[["btc_usd", "EUR", "BRL", "temp_max"]] = df[
-    #     ["btc_usd", "EUR", "BRL", "temp_max"]
-    # ].apply(normalize_series)
+    df[["btc_usd", "EUR", "BRL", "temp_max"]] = df[
+        ["btc_usd", "EUR", "BRL", "temp_max"]
+    ].apply(normalize_series)
 
-    # print(df.head())
+    print(df.head())
 
-    # # Visualization
-    # df[["btc_usd", "EUR", "BRL", "temp_max", "interaction"]].plot(
-    #     figsize=(12, 6), title="Normalized Time Series Data with Interaction"
-    # )
+    # Visualization
+    df[["btc_usd", "EUR", "BRL", "temp_max", "interaction"]].plot(
+        figsize=(12, 6), title="Normalized Time Series Data with Interaction"
+    )
 
     end = time.time()
     print(f"\nTotal execution time: {end - start:.2f} seconds")
-    return
 
 
 main()

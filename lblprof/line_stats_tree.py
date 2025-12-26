@@ -42,7 +42,7 @@ class LineStatsTree:
                 )
             else:
                 msg = "Event key already in self.events_index"
-                raise Exception(msg)
+                raise ValueError(msg)
 
         # 2. Establish parent-child relationships
         # We first build a dict to map event keys to event ids, so we can get the
@@ -67,7 +67,7 @@ class LineStatsTree:
             parent_id = linekey_to_id.get(parent_key)
             if parent_id is None:
                 msg = f"Parent key {event.call_stack[-1]} not found in events index"
-                raise Exception(msg)
+                raise ValueError(msg)
 
             self.events_index[parent_id].childs[event_id] = event
             event.parent = parent_id
@@ -134,11 +134,11 @@ class LineStatsTree:
 
         # 6. Update the events_index with the merged events
         self.events_index = {}
-        for _, event in grouped_events.items():
+        for event in grouped_events.values():
             self.events_index[event.id] = event
 
         # 7. Update the childs attributes to remove deleted childs
-        for _, event in self.events_index.items():
+        for event in self.events_index.values():
             event.childs = {
                 child.id: child
                 for child in event.childs.values()

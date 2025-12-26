@@ -36,7 +36,6 @@ def start_monitoring() -> None:
     sys.meta_path.insert(0, InstrumentationFinder())
 
     # 4. Remove already loaded modules that match the filter dirs so they can be
-    # re-imported and instrumented
     clear_cache_modules()
 
 

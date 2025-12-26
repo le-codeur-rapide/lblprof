@@ -134,7 +134,6 @@ class TerminalTreeUI:
 
         # Initialize screen position and map of rows that need spacing
         screen_y = 2  # Start after header
-        # root_spacers = set()  # Track where to add blank lines
 
         # Calculate visible range accounting for spacers
         visible_end = min(self.scroll_offset + visible_height, len(display_data))
@@ -223,7 +222,6 @@ class TerminalTreeUI:
 
     def _toggle_collapse(
         self,
-        display_data: list[NodeTerminalUI],
         current_node: NodeTerminalUI,
     ) -> None:
         """Toggle collapse state of the current node."""
@@ -303,8 +301,7 @@ class TerminalTreeUI:
                 if self.current_pos > 0:
                     self.current_pos -= 1
                     # Adjust scroll if needed
-                    if self.current_pos < self.scroll_offset:
-                        self.scroll_offset = self.current_pos
+                    self.scroll_offset = min(self.scroll_offset, self.current_pos)
 
             elif key == curses.KEY_DOWN:
                 # Move down

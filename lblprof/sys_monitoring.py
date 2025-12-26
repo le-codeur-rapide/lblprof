@@ -68,7 +68,7 @@ class CodeMonitor:
         self,
         code: CodeType,
         instruction_offset: int,
-        retval: object,
+        retval: object,  # noqa: ARG002
     ) -> None:
         """Code to run when a function is returned"""
         logging.debug(f"RETURN from {code.co_name} at offset {instruction_offset}")
@@ -118,17 +118,17 @@ class CodeMonitor:
         sys.monitoring.register_callback(
             TOOL_ID,
             sys.monitoring.events.PY_START,
-            lambda *args: None,
+            lambda *_: None,
         )
         sys.monitoring.register_callback(
             TOOL_ID,
             sys.monitoring.events.LINE,
-            lambda *args: None,
+            lambda *_: None,
         )
         sys.monitoring.register_callback(
             TOOL_ID,
             sys.monitoring.events.PY_RETURN,
-            lambda *args: None,
+            lambda *_: None,
         )
 
 

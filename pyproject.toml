@@ -73,12 +73,12 @@ select = [
     "SIM", # flake8-simplify
     "S",   # flake8-bandit
     "T20", # flake8-print
-    # "ARG",  # flake8-unused-arguments
-    # "ERA",  # eradicate
+    "ARG", # flake8-unused-arguments
+    "ERA", # eradicate
     # "PL",   # pylint
-    # "PERF", # perflint
-    # "FURB", # refurb
-    # "TRY",  # tryceratops
+    "PERF", # perflint
+    "FURB", # refurb
+    "TRY",  # tryceratops
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -93,4 +93,5 @@ select = [
     "T20",
     "S",
     "PTH",
+    "TRY",
 ]

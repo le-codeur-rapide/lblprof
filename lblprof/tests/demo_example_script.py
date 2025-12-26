@@ -1,3 +1,4 @@
+# ruff: noqa: ERA001
 import importlib
 import logging
 import os
@@ -33,7 +34,6 @@ def main2():
 def main():
     time.sleep(0.1)
     main2()
-    return
 
 
 # reset cache

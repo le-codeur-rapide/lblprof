@@ -1,4 +1,3 @@
-# from lblprof import start_monitoring, stop_tracing, show_tree
 import logging
 import time
 
@@ -12,12 +11,8 @@ def main():
 
 def main2():
     time.sleep(0.01)
-    # stop_tracing()
     time.sleep(0.01)
 
 
-# start_monitoring()
 main()
 time.sleep(0.01)
-
-# show_tree()
