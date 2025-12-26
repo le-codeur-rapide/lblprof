@@ -1,3 +1,4 @@
+import importlib
 import os
 import logging
 import sys
@@ -13,21 +14,21 @@ logging.basicConfig(level=logging.DEBUG)
 path_example_folder = os.path.join(os.path.dirname(__file__), "example_scripts")
 script_name = "data_computation.py"
 # script_name = "chroma_vector_search.py"
-# script_name = "fibonacci.py"
-script_name = "import_pandas.py"
+script_name = "fibonacci.py"
+# script_name = "import_pandas.py"
 # script_name = "list_comprehension.py"
 # script_name = "try_except.py"
-script_name = "double_zip.py"
+# script_name = "double_zip.py"
 # script_name = "generator_function.py"
 script_path = os.path.join(path_example_folder, script_name)
 
 
 def main2():
-    time.sleep(1)
+    time.sleep(0.1)
 
 
 def main():
-    time.sleep(1)
+    time.sleep(0.1)
     main2()
     return
 
@@ -43,6 +44,9 @@ def main():
 start_monitoring()
 import pandas as pd  # type: ignore # noqa: E402,F401
 
+# main()
+# main2()
+importlib.import_module(f"example_scripts.{script_name.split('.')[0]}")
 # Load and execute the example script
 start_time = time.perf_counter()
 runpy.run_path(script_path, run_name="__main__")

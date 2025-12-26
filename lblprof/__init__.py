@@ -1,3 +1,4 @@
+from lblprof.line_stats_tree import LineStatsTree
 import inspect
 import sys
 
@@ -44,15 +45,18 @@ def stop_monitoring() -> None:
     # remove the custom finder
     if isinstance(sys.meta_path[0], InstrumentationFinder):
         sys.meta_path = sys.meta_path[1:]
-    tracer.build_tree()
 
 
 def show_tree() -> None:
     """Display the tree structure."""
-    tracer.tree.display_tree()
+    tree = LineStatsTree(tracer.events)
+    tree.build_tree()
+    tree.display_tree()
 
 
 # Add a module-level function to expose the interactive UI
 def show_interactive_tree(min_time_s: float = 0):
     """Display an interactive tree in the terminal."""
-    tracer.tree.show_interactive(min_time_s=min_time_s)
+    tree = LineStatsTree(tracer.events)
+    tree.build_tree()
+    tree.show_interactive(min_time_s=min_time_s)

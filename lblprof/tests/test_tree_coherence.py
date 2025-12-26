@@ -62,6 +62,6 @@ def _validate_time_sleep(tree: LineStatsTree):
         if "time.sleep" in line.source:
             n = line.source.split("time.sleep(")[1].split(")")[0]
             total_time = float(n) * line.hits * 1000
-            assert line.duration == pytest.approx(  # type: ignore
-                total_time, rel=0.1
+            assert (
+                line.duration == pytest.approx(total_time, rel=0.1)
             ), f"Line {line.id} should have time {total_time} but has time {line.duration}"
