@@ -1,14 +1,13 @@
-from lblprof.line_stats_tree import LineStatsTree
 import inspect
 import sys
 
-# Import the base tracer that works on all Python versions
-from .sys_monitoring import CodeMonitor, instrument_code_recursive
-from .runtime_monitoring import (
+from lblprof.display_tree import show_interactive
+from lblprof.line_stats_tree import LineStatsTree
+from lblprof.runtime_monitoring import (
     InstrumentationFinder,
     clear_cache_modules,
 )
-
+from lblprof.sys_monitoring import CodeMonitor, instrument_code_recursive
 
 # Create a singleton instance for the module
 tracer = CodeMonitor()
@@ -18,7 +17,7 @@ if not hasattr(sys, "monitoring"):
     raise RuntimeError("Python 3.12+ is required to use lblprof")
 
 
-def start_monitoring():
+def start_monitoring() -> None:
     # TODO put most of this code away in a function that takes the
     # tracer and the caller frame
 
@@ -34,7 +33,8 @@ def start_monitoring():
     # 3. Install import hook to instrument future imports
     sys.meta_path.insert(0, InstrumentationFinder())
 
-    # 4. Remove already loaded modules that match the filter dirs so they can be re-imported and instrumented
+    # 4. Remove already loaded modules that match the filter dirs so they can be
+    # re-imported and instrumented
     clear_cache_modules()
 
 
@@ -55,8 +55,8 @@ def show_tree() -> None:
 
 
 # Add a module-level function to expose the interactive UI
-def show_interactive_tree(min_time_s: float = 0):
+def show_interactive_tree(min_time_s: float = 0) -> None:
     """Display an interactive tree in the terminal."""
     tree = LineStatsTree(tracer.events)
     tree.build_tree()
-    tree.show_interactive(min_time_s=min_time_s)
+    show_interactive(tree.root_lines, min_time_s=min_time_s)

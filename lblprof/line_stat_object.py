@@ -1,6 +1,6 @@
 import csv
-from typing import Literal, NamedTuple, Optional, Tuple
 from dataclasses import dataclass
+from typing import Literal, NamedTuple
 
 
 class LineKey(NamedTuple):
@@ -19,7 +19,7 @@ class LineEvent:
     call_stack: list[LineKey]
 
 
-EventKeyT = Tuple[LineKey, Tuple[LineKey, ...]]
+EventKeyT = tuple[LineKey, tuple[LineKey, ...]]
 
 
 @dataclass
@@ -31,7 +31,7 @@ class LineStats(LineEvent):
     # The source code of the line
     source: str
     childs: dict[int, "LineStats"]
-    parent: Optional[int]
+    parent: int | None
     duration: float
 
     @property
@@ -50,12 +50,12 @@ class LineStats(LineEvent):
         )
 
 
-def save_events_csv(events: list[LineEvent], path: str = "events.csv"):
+def save_events_csv(events: list[LineEvent], path: str = "events.csv") -> None:
     """Helper function that saves list of LineEvents to csv"""
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["id", "file_name", "func_name", "line_no", "start_time", "stack_trace"]
+            ["id", "file_name", "func_name", "line_no", "start_time", "stack_trace"],
         )
 
         for ev in events:
@@ -70,5 +70,5 @@ def save_events_csv(events: list[LineEvent], path: str = "events.csv"):
                         f"{lk.file_name}:{lk.function_name}:{lk.line_no}"
                         for lk in ev.call_stack
                     ),
-                ]
+                ],
             )

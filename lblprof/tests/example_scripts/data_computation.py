@@ -1,12 +1,10 @@
 import logging
-
-
 import random
-import requests
-import pandas as pd
+import time
 
 import numpy as np
-import time
+import pandas as pd
+import requests
 
 
 def fetch_exchange_rates():
@@ -56,7 +54,7 @@ def fetch_weather_data():
             "temp_max": [
                 random.randint(10, 30) for _ in range(len(data["daily"]["time"]))
             ],
-        }
+        },
     )
     df["date"] = pd.to_datetime(df["date"])
     df.set_index("date", inplace=True)

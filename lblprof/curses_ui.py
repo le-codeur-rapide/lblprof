@@ -1,6 +1,7 @@
 import curses
 import sys
-from typing import Callable, List, Optional, TypedDict
+from collections.abc import Callable
+from typing import TypedDict
 
 from lblprof.line_stat_object import EventKeyT, LineStats
 
@@ -17,9 +18,9 @@ class TerminalTreeUI:
 
     def __init__(
         self,
-        tree_data_provider: Callable[[Optional[LineStats]], List[LineStats]],
+        tree_data_provider: Callable[[LineStats | None], list[LineStats]],
         node_formatter: Callable[[LineStats, str], str],
-    ):
+    ) -> None:
         """
         Initialize the terminal UI.
 
@@ -46,10 +47,11 @@ class TerminalTreeUI:
         self.scroll_offset = 0  # Vertical scroll offset
 
     def _generate_display_data(
-        self, root_nodes: List[LineStats]
-    ) -> List[NodeTerminalUI]:
+        self,
+        root_nodes: list[LineStats],
+    ) -> list[NodeTerminalUI]:
         """Generate flattened display data based on current UI state."""
-        display_data: List[NodeTerminalUI] = []
+        display_data: list[NodeTerminalUI] = []
 
         # Process each root node
         for i, root in enumerate(root_nodes):
@@ -70,8 +72,11 @@ class TerminalTreeUI:
         return display_data
 
     def _add_children_to_display(
-        self, display_data: List[NodeTerminalUI], parent: LineStats, depth: int
-    ):
+        self,
+        display_data: list[NodeTerminalUI],
+        parent: LineStats,
+        depth: int,
+    ) -> None:
         """Add children of a node to the display data recursively."""
         # Get all child lines
         child_lines = self._get_sorted_children(parent)
@@ -92,7 +97,7 @@ class TerminalTreeUI:
             if child.event_key in self.expanded_nodes:
                 self._add_children_to_display(display_data, child, depth + 1)
 
-    def _get_sorted_children(self, parent: LineStats) -> List[LineStats]:
+    def _get_sorted_children(self, parent: LineStats) -> list[LineStats]:
         """Get children of a parent node."""
         # First get all valid children
         children = self.tree_data_provider(parent)
@@ -118,10 +123,10 @@ class TerminalTreeUI:
     def _render_tree(
         self,
         stdscr: curses.window,
-        display_data: List[NodeTerminalUI],
+        display_data: list[NodeTerminalUI],
         max_y: int,
         max_x: int,
-    ):
+    ) -> None:
         """Render the tree data on the screen."""
         # Limit display data to visible area
         visible_height = max_y - 4  # Account for header and help
@@ -186,8 +191,13 @@ class TerminalTreeUI:
             screen_y += 1
             rendered_pos += 1
 
-    def _get_prefix(self, node: NodeTerminalUI, display_data: list[NodeTerminalUI]):
-        """Generate the tree prefix for a node based on its position in the hierarchy."""
+    def _get_prefix(
+        self,
+        node: NodeTerminalUI,
+        display_data: list[NodeTerminalUI],
+    ) -> str:
+        """Generate the tree prefix for a node based on its position in the
+        hierarchy."""
         prefix = ""
         if node["depth"] == 0:
             # Root nodes
@@ -206,9 +216,13 @@ class TerminalTreeUI:
         return prefix
 
     def _check_if_last_ancestor(
-        self, node: NodeTerminalUI, display_data: list[NodeTerminalUI], depth: int
-    ):
-        """Check if the node has an ancestor at the given depth that is the last child."""
+        self,
+        node: NodeTerminalUI,
+        display_data: list[NodeTerminalUI],
+        depth: int,
+    ) -> bool:
+        """Check if the node has an ancestor at the given depth that is the last
+        child."""
         # Find all nodes at this depth level
         nodes_at_depth = [n for n in display_data if n["depth"] == depth]
         if not nodes_at_depth:
@@ -222,8 +236,10 @@ class TerminalTreeUI:
         return False
 
     def _toggle_collapse(
-        self, display_data: List[NodeTerminalUI], current_node: NodeTerminalUI
-    ):
+        self,
+        display_data: list[NodeTerminalUI],
+        current_node: NodeTerminalUI,
+    ) -> None:
         """Toggle collapse state of the current node."""
         node_key = current_node["line"].event_key
         if node_key in self.expanded_nodes:
@@ -231,11 +247,11 @@ class TerminalTreeUI:
         else:
             self.expanded_nodes.add(node_key)
 
-    def run(self):
+    def run(self) -> None:
         """Run the terminal UI."""
         curses.wrapper(self._main_curses_loop)
 
-    def _main_curses_loop(self, stdscr: curses.window):
+    def _main_curses_loop(self, stdscr: curses.window) -> None:
         """Main curses loop for displaying and interacting with the tree."""
         # Initialize curses
         stdscr.clear()
@@ -323,11 +339,13 @@ class TerminalTreeUI:
                 # Move down a page
                 visible_height = max_y - 4
                 self.current_pos = min(
-                    len(display_data) - 1, self.current_pos + visible_height
+                    len(display_data) - 1,
+                    self.current_pos + visible_height,
                 )
                 max_scroll = max(0, len(display_data) - visible_height)
                 self.scroll_offset = min(
-                    max_scroll, self.scroll_offset + visible_height
+                    max_scroll,
+                    self.scroll_offset + visible_height,
                 )
 
             elif key == ord("\n"):  # Enter key

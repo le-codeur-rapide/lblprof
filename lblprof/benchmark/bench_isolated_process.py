@@ -1,11 +1,12 @@
 """This script is run in an isolated process to benchmark the overhead of lblprof.
-It takes as arguments the module name, function name, and mode (profiled or unprofiled)"""
+It takes as arguments the module name, function name, and mode (profiled or
+unprofiled)"""
 
 if __name__ == "__main__":
+    import importlib
+    import json
     import sys
     import time
-    import json
-    import importlib
 
     # args: module function mode
     module, func_name, mode = sys.argv[1], sys.argv[2], sys.argv[3]

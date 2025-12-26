@@ -1,4 +1,4 @@
-def import_pandas():
+def import_pandas() -> None:
     import pandas  # noqa
 
 

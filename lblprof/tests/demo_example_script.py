@@ -1,11 +1,12 @@
-from lblprof import tracer
-from lblprof.line_stat_object import save_events_csv
 import importlib
-import os
 import logging
+import os
+import runpy
 import sys
 import time
-import runpy
+
+from lblprof import tracer
+from lblprof.line_stat_object import save_events_csv
 
 sys.path.append(os.getcwd())
 from lblprof import show_interactive_tree, start_monitoring, stop_monitoring

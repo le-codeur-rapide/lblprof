@@ -4,10 +4,10 @@ import importlib.abc
 import importlib.machinery
 import logging
 import os
-from pathlib import Path
 import sys
-from types import ModuleType
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from pathlib import Path
+from types import CodeType, ModuleType
 
 from lblprof.sys_monitoring import instrument_code_recursive
 
@@ -42,8 +42,11 @@ class InstrumentationFinder(importlib.abc.MetaPathFinder):
     """
 
     def find_spec(
-        self, name: str, path: Sequence[str] | None, target: Optional[ModuleType] = None
-    ) -> Optional[importlib.machinery.ModuleSpec]:
+        self,
+        name: str,
+        path: Sequence[str] | None,
+        target: ModuleType | None = None,
+    ) -> importlib.machinery.ModuleSpec | None:
         """
         This method is called by importlib to find a module.
         If the module correspond to filters, it will change the loader to
@@ -60,11 +63,11 @@ class InstrumentationFinder(importlib.abc.MetaPathFinder):
 
 
 class InstrumentLoader(importlib.abc.Loader):
-    def __init__(self, loader: importlib.abc.Loader):
+    def __init__(self, loader: importlib.abc.Loader) -> None:
         # store the original loader
         self.loader = loader
 
-    def create_module(self, spec: importlib.machinery.ModuleSpec):
+    def create_module(self, spec: importlib.machinery.ModuleSpec) -> ModuleType | None:
         # delegate module creation to the original loader
         return self.loader.create_module(spec)
 
@@ -78,14 +81,14 @@ class InstrumentLoader(importlib.abc.Loader):
         return
 
 
-def instrument_file(path: Path):
+def instrument_file(path: Path) -> CodeType:
     """Returned instrumented code corresponding to a python file"""
     code = compile(path.read_text(), str(path), "exec")
     instrument_code_recursive(code)
     return code
 
 
-def clear_cache_modules():
+def clear_cache_modules() -> None:
     """Clear sys.module with all modules corresponding to the filters"""
     for mod_name, mod in list(sys.modules.items()):
         # Built in modules

@@ -1,7 +1,8 @@
 # See https://github.com/le-codeur-rapide/lblprof/issues/5 for context
 
 import time
-from lblprof import start_monitoring, stop_monitoring, tracer, LineStatsTree
+
+from lblprof import LineStatsTree, start_monitoring, stop_monitoring, tracer
 
 
 def test_tracing_no_new_context():

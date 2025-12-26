@@ -1,7 +1,7 @@
 import math
-import time
 import random
-from functools import lru_cache
+import time
+from functools import cache
 
 
 class Calculator:
@@ -17,7 +17,7 @@ class Calculator:
             self.values.append(random.randint(1, 100))
 
 
-@lru_cache(maxsize=None)
+@cache
 def recursive_fib(n):
     if n <= 1:
         return n

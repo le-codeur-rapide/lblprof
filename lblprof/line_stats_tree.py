@@ -1,29 +1,27 @@
-from lblprof.source_code_utils import get_source_code
-import logging
 import os
-from typing import List, Dict, Tuple, Optional, Union
 
-from lblprof.curses_ui import TerminalTreeUI
-from lblprof.line_stat_object import EventKeyT, LineStats, LineKey, LineEvent
+from lblprof.line_stat_object import EventKeyT, LineEvent, LineKey, LineStats
+from lblprof.utils.source_code_utils import get_source_code
 
 
 class LineStatsTree:
-    """A tree structure to manage LineStats objects with automatic parent-child time propagation."""
+    """A tree structure to manage LineStats objects with automatic parent-child time
+    propagation."""
 
-    def __init__(self, line_events: List[LineEvent]):
+    def __init__(self, line_events: list[LineEvent]) -> None:
         # just raw event from custom_tracer
         # Inserting in this list should be as fast as possible to avoid overhead
-        self.raw_events_list: List[LineEvent] = line_events
+        self.raw_events_list: list[LineEvent] = line_events
 
         # Index of events by id
-        self.events_index: Dict[int, LineStats] = {}
+        self.events_index: dict[int, LineStats] = {}
 
         # Track root nodes (lines of user code initial frame)
-        self.root_lines: List[LineStats] = []
+        self.root_lines: list[LineStats] = []
 
         # cache of source code for lines
         # key is (file_name, line_no) for a source code line
-        self.line_source: Dict[Tuple[str, int], str] = {}
+        self.line_source: dict[tuple[str, int], str] = {}
 
     def build_tree(self) -> None:
         """Build the tree (self.events_index) from the raw events list."""
@@ -46,13 +44,15 @@ class LineStatsTree:
                 raise Exception("Event key already in self.events_index")
 
         # 2. Establish parent-child relationships
-        # We first build a dict to map event keys to event ids, so we can get the parent_id in O(1) time for each line
-        # we reverse the list because we always prefer that the parent of a line is the first event corresponding to the parent line
+        # We first build a dict to map event keys to event ids, so we can get the
+        # parent_id in O(1) time for each line
+        # we reverse the list because we always prefer that the parent of a line is the
+        # first event corresponding to the parent line
         linekey_to_id = {
             line.event_key[0]: event_id
             for event_id, line in reversed(list(self.events_index.items()))
         }
-        for id, event in self.events_index.items():
+        for event_id, event in self.events_index.items():
             # We get parent from stack trace
             if len(event.call_stack) == 0:
                 continue
@@ -66,49 +66,50 @@ class LineStatsTree:
             parent_id = linekey_to_id.get(parent_key)
             if parent_id is None:
                 raise Exception(
-                    f"Parent key {event.call_stack[-1]} not found in events index"
+                    f"Parent key {event.call_stack[-1]} not found in events index",
                 )
 
-            self.events_index[parent_id].childs[id] = event
+            self.events_index[parent_id].childs[event_id] = event
             event.parent = parent_id
-            self.events_index[id] = event
+            self.events_index[event_id] = event
         # 3. Update duration of each line
-        # we use the time_save dict to store the id and start time of the previous line in the same frame (which is not necessary the previous line in the index)
-        time_save: Dict[Union[int, None], Tuple[int, float]] = {}
-        for id, event in self.events_index.items():
+        # we use the time_save dict to store the id and start time of the previous line
+        # in the same frame (which is not necessary the previous line in the index)
+        time_save: dict[int | None, tuple[int, float]] = {}
+        for event_id, event in self.events_index.items():
             if event.parent not in time_save:
                 # first line of the frame
-                time_save[event.parent] = (id, event.start_time)
+                time_save[event.parent] = (event_id, event.start_time)
                 continue
             # not the first line of the frame, update the time of the previous line
             previous_id, previous_start_time = time_save[event.parent]
-            if event.start_time - previous_start_time < 0:
-                logging.warning(
-                    f"Time of line {event.id} is negative: {event.start_time} - {previous_start_time}"
-                )
             self.events_index[previous_id].duration = (
                 event.start_time - previous_start_time
             )
-            time_save[event.parent] = (id, event.start_time)
+            time_save[event.parent] = (event_id, event.start_time)
 
         # 4. Remove END_OF_FRAME lines
         # The END_OF_FRAME lines are not needed in the tree anymore
-        for id, event in list(self.events_index.items()):
+        for event_id, event in list(self.events_index.items()):
             if event.line_no == "END_OF_FRAME":
                 parent_id = event.parent
                 if parent_id is not None:
-                    del self.events_index[parent_id].childs[id]
-                del self.events_index[id]
+                    del self.events_index[parent_id].childs[event_id]
+                del self.events_index[event_id]
         self.root_lines = [
             line for line in self.events_index.values() if line.parent is None
         ]
 
-        # 5. Merge lines that have same file_name, function_name and line_no (to avoid duplicates in a for loop for example)
-        # Note it is important to start by root nodes and merge going down the tree (DFS pre-order)
+        # 5. Merge lines that have same file_name, function_name and line_no (to avoid
+        # duplicates in a for loop for example)
+        # Note it is important to start by root nodes and merge going down the tree (DFS
+        # pre-order)
         grouped_events: dict[EventKeyT, LineStats] = {}
 
-        def _merge(event: LineStats):
-            """Merge events that have same file_name, function_name and line_no in the same frame."""
+        def _merge(event: LineStats) -> None:
+            """Merge events that have same file_name, function_name and line_no in the
+            same frame.
+            """
             key = (
                 LineKey(event.file_name, event.func_name, event.line_no),
                 tuple(event.call_stack),
@@ -137,7 +138,7 @@ class LineStatsTree:
             self.events_index[event.id] = event
 
         # 7. Update the childs attributes to remove deleted childs
-        for id, event in self.events_index.items():
+        for _, event in self.events_index.items():
             event.childs = {
                 child.id: child
                 for child in event.childs.values()
@@ -155,7 +156,7 @@ class LineStatsTree:
     # --------------------------------
     def display_tree(
         self,
-        root_key: Optional[int] = None,
+        root_key: int | None = None,
         depth: int = 0,
         max_depth: int = 10,
         is_last: bool = True,
@@ -171,7 +172,7 @@ class LineStatsTree:
         pipe = "│   "
         space = "    "
 
-        def format_line_info(line: LineStats, branch: str):
+        def format_line_info(line: LineStats, branch: str) -> str:
             filename = os.path.basename(line.file_name)
             line_id = f"{filename}::{line.func_name}::{line.line_no}"
 
@@ -182,11 +183,14 @@ class LineStatsTree:
 
             # Display line with time info and hits count
             assert line.duration is not None
-            return f"{prefix}{branch}{line_id} [hits:{line.hits} total:{line.duration * 1000:.2f}ms] - {truncated_source}"
+            return (
+                f"{prefix}{branch}{line_id} [hits:{line.hits} "
+                + f"total:{line.duration * 1000:.2f}ms] - {truncated_source}"
+            )
 
         def group_children_by_file(
             children: dict[int, LineStats],
-        ) -> Dict[str, List[LineStats]]:
+        ) -> dict[str, list[LineStats]]:
             children_by_file: dict[str, list[LineStats]] = {}
             for child in children.values():
                 if child.file_name not in children_by_file:
@@ -200,7 +204,7 @@ class LineStatsTree:
             return children_by_file
 
         def get_all_children(
-            children_by_file: Dict[str, List[LineStats]],
+            children_by_file: dict[str, list[LineStats]],
         ) -> list[LineStats]:
             all_children: list[LineStats] = []
             for file_name in children_by_file:
@@ -224,7 +228,11 @@ class LineStatsTree:
             for i, child in enumerate(all_children):
                 is_last_child = i == len(all_children) - 1
                 self.display_tree(
-                    child.id, depth + 1, max_depth, is_last_child, next_prefix
+                    child.id,
+                    depth + 1,
+                    max_depth,
+                    is_last_child,
+                    next_prefix,
                 )
         else:
             # Print all root trees
@@ -255,52 +263,12 @@ class LineStatsTree:
                 for j, child in enumerate(all_children):
                     is_last_child = j == len(all_children) - 1
                     self.display_tree(
-                        child.id, 1, max_depth, is_last_child, next_prefix
+                        child.id,
+                        1,
+                        max_depth,
+                        is_last_child,
+                        next_prefix,
                     )
-
-    def show_interactive(self, min_time_s: float = 0.1):
-        """Display the tree in an interactive terminal interface."""
-
-        # Define the data provider
-        # Given a node (a line), return its children
-        def get_tree_data(node_key: Optional[LineStats] = None) -> List[LineStats]:
-            logging.debug(f"request for {node_key}")
-            if node_key is None:
-                # Return root nodes
-                return [
-                    line
-                    for line in self.root_lines
-                    if line.duration and line.duration >= min_time_s
-                ]
-            else:
-                # Return children of the specified node
-                return [
-                    child
-                    for child in node_key.childs.values()
-                    if child.duration and child.duration >= min_time_s
-                ]
-
-        # Define the node formatter function
-        # Given a line, return its formatted string (displayed in the UI)
-        def format_node(line: LineStats, indicator: str = "") -> str:
-            filename = os.path.basename(line.file_name)
-            line_id = f"{filename}::{line.func_name}::{line.line_no}"
-
-            # Truncate source code
-            truncated_source = (
-                line.source[:40] + "..." if len(line.source) > 40 else line.source
-            )
-
-            # Format stats
-            assert line.duration is not None
-            stats = f"[hits:{line.hits} time:{line.duration:.2f}s]"
-
-            # Return formatted line
-            return f"{indicator}{line_id} {stats} - {truncated_source}"
-
-        # Create and run the UI
-        ui = TerminalTreeUI(get_tree_data, format_node)
-        ui.run()
 
     # --------------------------------
     # Private methods
@@ -308,15 +276,15 @@ class LineStatsTree:
     def _save_events(self) -> None:
         """Save the events to a file."""
         with open("events.csv", "w") as f:
-            for event in self.raw_events_list:
-                f.write(
-                    f"{event.id},{event.file_name},{event.func_name},{event.line_no},{event.start_time},{event.call_stack}\n"
-                )
+            f.writelines(
+                f"{event.id},{event.file_name},{event.func_name},{event.line_no},{event.start_time},{event.call_stack}\n"
+                for event in self.raw_events_list
+            )
 
     def _save_events_index(self) -> None:
         """Save the events index to a file."""
         with open("events_index.csv", "w") as f:
-            for _, event in self.events_index.items():
-                f.write(
-                    f"{event.id},{event.file_name.split('/')[-1]},{event.func_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.duration},{len(event.childs)},{event.parent}\n"
-                )
+            f.writelines(
+                f"{event.id},{event.file_name.split('/')[-1]},{event.func_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.duration},{len(event.childs)},{event.parent}\n"
+                for _, event in self.events_index.items()
+            )

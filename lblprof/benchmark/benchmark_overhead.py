@@ -1,9 +1,10 @@
+import json
+import logging
 import subprocess
 import sys
-import json
 from typing import Literal
+
 from lblprof.benchmark.funcs import sample_functions
-import logging
 
 logging.basicConfig(level=logging.INFO, force=True)
 
@@ -21,13 +22,14 @@ def run(module: str, fn: str, mode: BenchRunMode) -> float:
             module,
             fn,
             mode,
-        ]
+        ],
     )
     return json.loads(r)["time"]
 
 
 def print_bench_result(
-    unprofiled_times: list[float], profiled_times: list[float]
+    unprofiled_times: list[float],
+    profiled_times: list[float],
 ) -> None:
     unprofiled_time = sum(unprofiled_times) / len(unprofiled_times)
     profiled_time = sum(profiled_times) / len(profiled_times)
