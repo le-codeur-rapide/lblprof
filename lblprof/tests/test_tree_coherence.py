@@ -27,12 +27,8 @@ EXAMPLE_SCRIPTS = [
 
 @pytest.fixture(params=EXAMPLE_SCRIPTS, ids=lambda x: os.path.basename(x))
 def tree(request: pytest.FixtureRequest) -> LineStatsTree:
-    # run the tracer for a bit and return the tree
     start_monitoring()
-
-    # Load and execute the example script
     importlib.import_module(f"example_scripts.{request.param}")
-
     stop_monitoring()
     # print the tree
     print(f"Tree for {os.path.basename(request.param)}:")
@@ -41,11 +37,11 @@ def tree(request: pytest.FixtureRequest) -> LineStatsTree:
 
 
 def test_tree_coherence(tree: LineStatsTree):
-    _validate_parent_child_relations(tree)
-    _validate_time_sleep(tree)
+    validate_parent_child_relations(tree)
+    validate_time_sleep(tree)
 
 
-def _validate_parent_child_relations(tree: LineStatsTree):
+def validate_parent_child_relations(tree: LineStatsTree):
     for line in tree.events_index.values():
         if line.parent is None:
             continue
@@ -57,7 +53,8 @@ def _validate_parent_child_relations(tree: LineStatsTree):
         ], f"Line {line.id} should have parent key {line.parent}"
 
 
-def _validate_time_sleep(tree: LineStatsTree):
+def validate_time_sleep(tree: LineStatsTree):
+    """Assert that the time.sleep lines have the correct time"""
     for line in tree.root_lines:
         if "time.sleep" in line.source:
             n = line.source.split("time.sleep(")[1].split(")")[0]
@@ -65,3 +62,12 @@ def _validate_time_sleep(tree: LineStatsTree):
             assert (
                 line.duration == pytest.approx(total_time, rel=0.1)
             ), f"Line {line.id} should have time {total_time} but has time {line.duration}"
+
+
+def validate_parent_time_is_sum_of_children_time(tree: LineStatsTree):
+    for line in tree.events_index.values():
+        if not line.childs:
+            return
+        assert (
+            line.duration == sum([child.duration for child in line.childs.values()])
+        ), f"Line {line.id} should have time {sum([child.duration for child in line.childs.values()])} but has time {line.duration}"

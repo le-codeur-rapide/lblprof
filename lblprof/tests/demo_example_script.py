@@ -1,3 +1,5 @@
+from lblprof import tracer
+from lblprof.line_stat_object import save_events_csv
 import importlib
 import os
 import logging
@@ -14,10 +16,10 @@ logging.basicConfig(level=logging.DEBUG)
 path_example_folder = os.path.join(os.path.dirname(__file__), "example_scripts")
 script_name = "data_computation.py"
 # script_name = "chroma_vector_search.py"
-script_name = "fibonacci.py"
+# script_name = "fibonacci.py"
 # script_name = "import_pandas.py"
 # script_name = "list_comprehension.py"
-# script_name = "try_except.py"
+script_name = "try_except.py"
 # script_name = "double_zip.py"
 # script_name = "generator_function.py"
 script_path = os.path.join(path_example_folder, script_name)
@@ -56,4 +58,5 @@ print(f"Time taken: {end_time - start_time} seconds")
 stop_monitoring()
 # print the tree
 # show_tree()
+save_events_csv(tracer.events, "events.csv")
 show_interactive_tree(min_time_s=0.0)

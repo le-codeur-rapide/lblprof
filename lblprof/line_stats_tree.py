@@ -1,6 +1,7 @@
+from lblprof.source_code_utils import get_source_code
 import logging
 import os
-from typing import List, Dict, Literal, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional, Union
 
 from lblprof.curses_ui import TerminalTreeUI
 from lblprof.line_stat_object import EventKeyT, LineStats, LineKey, LineEvent
@@ -29,7 +30,7 @@ class LineStatsTree:
 
         # 1. Build the events index (id: LineStats)
         for event in self.raw_events_list:
-            source = self._get_source_code(event.file_name, event.line_no)
+            source = get_source_code(event.file_name, event.line_no)
 
             event_key = event.id
             if event_key not in self.events_index:
@@ -319,23 +320,3 @@ class LineStatsTree:
                 f.write(
                     f"{event.id},{event.file_name.split('/')[-1]},{event.func_name},{event.line_no},{event.source},{event.hits},{event.start_time},{event.duration},{len(event.childs)},{event.parent}\n"
                 )
-
-    def _get_source_code(
-        self, file_name: str, line_no: Union[int, Literal["END_OF_FRAME"]]
-    ) -> str:
-        """Get the source code for a specific line in a file."""
-        if line_no == "END_OF_FRAME":
-            return "END_OF_FRAME"
-        if (file_name, line_no) in self.line_source:
-            return self.line_source[(file_name, line_no)]
-        try:
-            with open(file_name, "r") as f:
-                lines = f.readlines()
-                if line_no - 1 < len(lines):
-                    source = lines[line_no - 1].strip()
-                    self.line_source[(file_name, line_no)] = source
-                    return source
-                else:
-                    return " "
-        except Exception:
-            return "No source code found"
