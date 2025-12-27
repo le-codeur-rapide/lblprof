@@ -23,12 +23,13 @@ class LineStatsTree:
         # Index of events by id
         self.events_index: dict[int, LineStats] = {}
 
-        # Track root nodes (lines of user code initial frame)
-        self.root_lines: list[LineStats] = []
-
         # cache of source code for lines
         # key is (file_name, line_no) for a source code line
         self.line_source: dict[tuple[str, int], str] = {}
+
+    @property
+    def root_lines(self) -> list[LineStats]:
+        return [line for line in self.events_index.values() if line.parent is None]
 
     def build_tree(self) -> None:
         """Build the tree (self.events_index) from the raw events list."""
@@ -53,9 +54,6 @@ class LineStatsTree:
         # 6. Update the childs attributes to remove deleted childs
         remove_deleted_childs_from_childs_attributes(events_index)
 
-        self.root_lines = [
-            line for line in events_index.values() if line.parent is None
-        ]
         self.events_index = events_index
         self._save_events_index()
 

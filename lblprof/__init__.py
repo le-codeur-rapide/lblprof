@@ -52,7 +52,7 @@ def show_tree() -> None:
     """Display the tree structure."""
     tree = LineStatsTree(tracer.events)
     tree.build_tree()
-    print_tree(tree.events_index, tree.root_lines)
+    print_tree(tree)
 
 
 # Add a module-level function to expose the interactive UI

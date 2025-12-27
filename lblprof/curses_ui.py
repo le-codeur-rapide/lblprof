@@ -5,6 +5,7 @@ from typing import TypedDict
 
 from lblprof.line_stat_object import EventKeyT, LineStats
 from lblprof.print_tree import get_sorted_children
+from lblprof.utils.source_code_utils import truncate_line
 from lblprof.utils.visual_constants import (
     BRANCH_LAST_CHARS,
     BRANCH_MID_CHARS,
@@ -32,7 +33,6 @@ def add_children_to_display(
     depth: int,
 ) -> None:
     """Add children of a node to the display data recursively."""
-    # Get all child lines
     children = tree_data_provider(parent)
     child_lines = get_sorted_children(children)
 
@@ -209,8 +209,7 @@ class TerminalTreeUI:
 
             # Combine and truncate if needed
             full_line = f"{prefix}{line_text}"
-            if len(full_line) >= max_x:
-                full_line = full_line[: max_x - 3] + "..."
+            full_line = truncate_line(full_line, max_x)
 
             # Add to screen
             stdscr.addstr(screen_y, 0, full_line, color)
@@ -335,7 +334,6 @@ class TerminalTreeUI:
 
 def initialise_curses(stdscr: curses.window) -> None:
     """Initialise the curses environment."""
-    # Initialize curses
     stdscr.clear()
     curses.curs_set(0)  # Hide cursor
     curses.start_color()
