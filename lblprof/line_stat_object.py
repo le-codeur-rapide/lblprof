@@ -31,9 +31,14 @@ class LineStats(LineEvent):
     hits: int
     # The source code of the line
     source: str
-    childs: dict[int, "LineStats"]
+    id_childs_dict: dict[int, "LineStats"]
     parent: int | None
     duration: float
+
+    @property
+    def childs(self) -> list["LineStats"]:
+        """Get the list of children."""
+        return list(self.id_childs_dict.values())
 
     @property
     def event_key(self) -> EventKeyT:

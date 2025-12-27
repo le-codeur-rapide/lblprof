@@ -42,7 +42,7 @@ def add_children_to_display(
             "line": child,
             "depth": depth,
             "is_last": i == len(child_lines) - 1,
-            "has_children": bool(child.childs),
+            "has_children": bool(child.id_childs_dict),
         }
         display_data.append(node_data)
 
@@ -71,7 +71,7 @@ def generate_display_data(
             "line": root,
             "depth": 0,
             "is_last": i == len(root_nodes) - 1,
-            "has_children": bool(root.childs),
+            "has_children": bool(root.id_childs_dict),
         }
         display_data.append(node_data)
 

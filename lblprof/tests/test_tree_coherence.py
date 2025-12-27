@@ -48,7 +48,7 @@ def validate_parent_child_relations(tree: LineStatsTree):
             f"Parent key {line.parent} not found in tree: line {line}"
         )
         assert line.id in [
-            child.id for child in tree.events_index[line.parent].childs.values()
+            child.id for child in tree.events_index[line.parent].childs
         ], f"Line {line.id} should have parent key {line.parent}"
 
 
@@ -69,7 +69,7 @@ def validate_parent_time_is_sum_of_children_time(tree: LineStatsTree):
         if not line.childs:
             return
         sum_child_durations = sum(
-            [child.duration for child in line.childs.values()],
+            [child.duration for child in line.childs],
         )
         assert line.duration == sum_child_durations, (
             f"Line {line.id} should have time "

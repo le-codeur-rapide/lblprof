@@ -18,7 +18,7 @@ def build_event_index(events: list[LineEvent]) -> dict[int, LineStats]:
             **event.__dict__,
             hits=1,
             source=source,
-            childs={},
+            id_childs_dict={},
             parent=None,
             duration=0,
         )
@@ -53,7 +53,7 @@ def establish_parent_child_relationships(
             msg = f"Parent key {event.call_stack[-1]} not found in events index"
             raise ValueError(msg)
 
-        events_index[parent_id].childs[event_id] = event
+        events_index[parent_id].id_childs_dict[event_id] = event
         event.parent = parent_id
         events_index[event_id] = event
 
@@ -84,7 +84,7 @@ def clear_end_of_frame_events(
         if event.line_no == "END_OF_FRAME":
             parent_id = event.parent
             if parent_id is not None:
-                del events_index[parent_id].childs[event_id]
+                del events_index[parent_id].id_childs_dict[event_id]
             del events_index[event_id]
 
 
@@ -109,13 +109,13 @@ def merge_similar_lines(events_index: dict[int, LineStats]) -> dict[int, LineSta
             grouped = grouped_events[key]
             grouped.duration += event.duration
             grouped.hits += event.hits
-            grouped.childs.update(event.childs)
+            grouped.id_childs_dict.update(event.id_childs_dict)
             # update parent of the new children
-            for child in event.childs.values():
+            for child in event.childs:
                 child.parent = grouped.id
 
         # Now recurse on the children
-        for child in event.childs.values():
+        for child in event.childs:
             _merge(child)
 
     for event in root_lines:
@@ -129,8 +129,6 @@ def remove_deleted_childs_from_childs_attributes(
     events_index: dict[int, LineStats],
 ) -> None:
     for event in events_index.values():
-        event.childs = {
-            child.id: child
-            for child in event.childs.values()
-            if child.id in events_index
+        event.id_childs_dict = {
+            child.id: child for child in event.childs if child.id in events_index
         }

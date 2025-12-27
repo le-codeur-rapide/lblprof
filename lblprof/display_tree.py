@@ -42,7 +42,7 @@ def show_interactive(root_lines: list[LineStats], min_time_s: float = 0.1) -> No
         # Return children of the specified node
         return [
             child
-            for child in node_key.childs.values()
+            for child in node_key.id_childs_dict.values()
             if child.duration and child.duration >= min_time_s
         ]
 
